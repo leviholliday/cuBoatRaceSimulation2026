@@ -1,0 +1,140 @@
+{
+  "_README": [
+    "Empirical joint and tube data. This file is the ONE place in the project",
+    "where the numbers are supposed to come from your own bench, not from a",
+    "paper, and it is deliberately separated from the code so you can update it",
+    "without touching the physics.",
+    "",
+    "WHY THIS IS NOT DERIVED FROM PUBLISHED FORMULAS",
+    "",
+    "There is real published work on corrugated board strength. The McKee",
+    "formula (1963) and its descendants are the standard, and they are built",
+    "around box compression test data: how a flat-panelled shipping box crushes",
+    "under top load. That is a different structure and a different failure mode",
+    "from a rolled cardboard tube, taped, loaded in bending at a joint. Applying",
+    "box-compression correlations to your joints would produce a number with",
+    "three decimal places and no meaning.",
+    "",
+    "Your own bench tests are better data for your own construction method. The",
+    "entries below marked source='ranked' carry the ORDERING you observed with",
+    "placeholder magnitudes. The ordering is real; the magnitudes are not.",
+    "Replace them with source='measured' entries as you get numbers.",
+    "",
+    "HOW TO GET THE NUMBERS",
+    "",
+    "Static: clamp one member horizontally, hang a bucket off the free end at a",
+    "measured lever arm, add water until it fails. Record pounds and inches;",
+    "moment = pounds x inches. Three specimens per configuration, take the",
+    "middle one. Note whether it sagged first or went suddenly.",
+    "",
+    "Cyclic: the race is roughly 150 paddle strokes. A joint that survives one",
+    "static pull can still work loose over 150 cycles, and that is the failure",
+    "you would not see coming. Load to about 40 percent of the static failure",
+    "moment, cycle it 200 times, then pull it to failure and compare against a",
+    "fresh specimen. The ratio is the fatigue knockdown.",
+    "",
+    "Wet: repeat one configuration after 10 minutes of standing water contact.",
+    "That single number replaces the wet_factor guess in constants.py, which is",
+    "currently the least defensible constant in the project."
+  ],
+  "calibrated": false,
+  "tested_on": "2026-09-10",
+  "board": {
+    "description": "single-wall, ~4 mm, coated one side",
+    "caliper_in_measured": null,
+    "areal_weight_lb_ft2_measured": null,
+    "_note": "Weigh a measured square and caliper it. Two minutes, and it removes the largest single uncertainty in the hull weight estimate."
+  },
+  "joints": {
+    "full_wrap": {
+      "relative_strength": 1.0,
+      "failure_moment_lbin": null,
+      "source": "ranked",
+      "description": "Tape wrapped continuously around both members through the joint.",
+      "observed": "Chosen as the best by the team: 'I think the full way round joint is the better joint' / 'I agree'. Reasoning given was that it relies on the bond between two tubes rather than on the tape alone. Cut all the way around the mating tube. Caveat raised in the same discussion: it uses more tape than the flap joint, which matters because tape is the binding budget.",
+      "cost_note": "Uses more tape per joint than partial_flap. With tape already the tighter of the two material budgets, using full wraps everywhere may not fit -- consider full wraps only at the highest-moment joints."
+    },
+    "partial_flap": {
+      "relative_strength": 0.65,
+      "failure_moment_lbin": null,
+      "source": "ranked",
+      "description": "Cardboard flaps folded out and taped down onto the mating member.",
+      "observed": "Middle of the three. Described as feeling 'decent'. Flaps cut and taped down onto the mating member. Warning recorded: do not pinch the flap while cutting it. Cheapest of the three in tape."
+    },
+    "through_axle": {
+      "relative_strength": 0.4,
+      "failure_moment_lbin": null,
+      "source": "ranked",
+      "description": "One member passed through a hole cut in the other.",
+      "observed": "Rejected. One member slid through a hole cut in the other. Two objections were raised: worry about it tearing at the hole, and 'I don't really like the through axle joint, because it's so hard to build'. Buildability, not just strength, is why this one is out."
+    },
+    "butt_tape": {
+      "relative_strength": 0.25,
+      "failure_moment_lbin": null,
+      "source": "estimated",
+      "description": "Members butted end to end and taped across the seam.",
+      "observed": "Not bench tested. Listed as a floor: the tape alone is the entire load path."
+    }
+  },
+  "tube_wraps": {
+    "1": {
+      "efficiency": 0.15,
+      "source": "ranked",
+      "note": "Layers slide past each other; the roll is not yet a section."
+    },
+    "2": {
+      "efficiency": 0.45,
+      "source": "ranked",
+      "note": "Still loose."
+    },
+    "3": {
+      "efficiency": 0.8,
+      "source": "ranked",
+      "note": "Confirmed in the lab: 'I would do three wraps. Yeah, three wraps for accuracy.' Also noted that each additional wrap adds another seam, which is itself a potential failure point -- so more is not automatically better."
+    },
+    "4": {
+      "efficiency": 0.9,
+      "source": "estimated"
+    },
+    "5": {
+      "efficiency": 0.95,
+      "source": "estimated"
+    }
+  },
+  "tube_diameter_findings": {
+    "observation": "Confirmed in the lab, including the trade-off: 'if you have a smaller diameter, then it will be tougher, but if it buckles...' -- 'so you're saying smaller is better?' -- 'except if it buckles, then bigger is better.' As a general rule they expected smaller diameter to be stronger, with buckling as the reason not to push it.",
+    "design_consequence": [
+      "Strength per wrap favours small tubes, and the tube_capacity model",
+      "reproduces that through the section modulus.",
+      "",
+      "But the failure MODE matters more than the margin here. A tube that",
+      "bends gradually gives the crew a warning and some time; a tube that",
+      "buckles goes from fine to folded with nothing in between, mid-race,",
+      "with two people kneeling on it.",
+      "",
+      "structure.tube_capacity() reports which mode governs for a given",
+      "diameter and wrap count, and evaluate_structure() raises a flag when",
+      "buckling wins. Prefer a slightly larger tube that sags first."
+    ]
+  },
+  "open_questions": [
+    "Static failure moment for each joint type, in pound-inches. Nothing was measured; every comparison so far has been by hand.",
+    "Cyclic/fatigue knockdown over ~150 strokes, which is roughly a race.",
+    "Wet knockdown after 10 minutes of contact. This would replace the wet_factor guess, currently the least defensible constant in the project.",
+    "Tape brand and measured tensile strength per inch of width.",
+    "Whether the coated side should face in or out.",
+    "SEALED END CHAMBERS -- raised in the lab ('we built an airtight seal essentially... could we tape the ends of it so if we do start to go down it has some [buoyancy]'). Not currently modelled: hullsim's decked_ends closes the torsion box but the swamping cascade does not credit sealed ends with reserve buoyancy. If you decide to build them, that is worth adding, because it changes swamping from 'lose the boat' to 'finish awash'."
+  ],
+  "_SOURCE": [
+    "Updated 2026-09-11 from the EGGN 1910 lab recording of Thursday 10 Sept 2026.",
+    "The recording confirms the ordering below and the three-wrap threshold, in",
+    "the team's own words. It also confirms that NO LOAD WAS MEASURED -- the",
+    "comparisons were made by hand and described as 'feels strong', 'feels",
+    "decent', 'feels really bad'. So every entry stays source='ranked'. The",
+    "ordering is evidence; the magnitudes are still placeholders.",
+    "",
+    "(The first pass at transcribing that recording collapsed into a repetition",
+    "loop, a known whisper failure on long audio. Transcribing it in 8-minute",
+    "chunks fixed it. Worth knowing if you transcribe the later labs.)"
+  ]
+}
