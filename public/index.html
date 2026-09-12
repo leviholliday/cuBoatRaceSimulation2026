@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canoe simulator results</title>
+<style>
+  :root{color-scheme:light dark}
+  body{font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+       max-width:900px;margin:48px auto;padding:0 20px;color:#1b2430;background:#fbfcfd}
+  h1{font-size:22px;margin-bottom:4px}
+  p.sub{color:#69737f;margin-top:0}
+  table{width:100%;border-collapse:collapse;margin-top:24px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e3e8ee;font-size:14px}
+  th{background:#f2f5f8;font-weight:600}
+  a.dl{color:#1f6f8b;text-decoration:none;font-weight:600}
+  a.dl:hover{text-decoration:underline}
+  .tag{display:inline-block;padding:2px 9px;border-radius:10px;background:#eef3f6;
+       font-size:12.5px;font-weight:600}
+  #empty{color:#69737f;margin-top:30px;display:none}
+  #err{color:#c0563b;margin-top:16px;display:none}
+</style>
+</head>
+<body>
+<h1>Canoe simulator results</h1>
+<p class="sub">Overnight runs uploaded from each machine. Newest first.</p>
+<table id="tbl"><thead><tr>
+  <th>Machine</th><th>File</th><th>Size</th><th>Uploaded</th><th></th>
+</tr></thead><tbody></tbody></table>
+<div id="empty">No uploads yet.</div>
+<div id="err">Could not load the file list.</div>
+<script>
+fetch('/api/list').then(r => r.json()).then(rows => {
+  const tbody = document.querySelector('#tbl tbody');
+  if (!rows.length) { document.getElementById('empty').style.display = 'block'; return; }
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const kb = (r.size / 1024).toFixed(0);
+    const when = new Date(r.uploadedAt).toLocaleString();
+    const href = '/api/download?key=' + encodeURIComponent(r.key);
+    tr.innerHTML =
+      '<td><span class="tag">' + r.tag + '</span></td>' +
+      '<td>' + r.filename + '</td>' +
+      '<td>' + kb + ' KB</td>' +
+      '<td>' + when + '</td>' +
+      '<td><a class="dl" href="' + href + '">Download</a></td>';
+    tbody.appendChild(tr);
+  }
+}).catch(() => { document.getElementById('err').style.display = 'block'; });
+</script>
+</body>
+</html>
