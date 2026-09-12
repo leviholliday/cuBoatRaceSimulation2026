@@ -355,6 +355,75 @@ designs with these numbers. Do not quote them as predictions.
 
 ---
 
+## Running it across several machines at once
+
+The overnight Monte Carlo run is embarrassingly parallel across machines —
+four computers each exploring a different random slice of the design space
+for eight-plus hours finds more than one machine can, and disagreement
+between them is itself useful information (see below).
+
+**Getting the code onto each machine**: this repo is on GitHub
+(`github.com/leviholliday/cuBoatRaceSimulation2026`, private). On any other
+machine —
+
+```bash
+git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git
+cd cuBoatRaceSimulation2026
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+```
+
+Give each machine its own `--seed` so they explore *different* designs
+rather than duplicating each other's work:
+
+```bash
+.venv/bin/python scripts/run_montecarlo.py --overnight --hours 8 --seed 2 \
+  --material paperboard_unknown
+```
+
+**Getting results back**: a small results site collects them —
+`cuboatrace2026-results.netlify.app`, backed by Netlify Functions and Blob
+storage (see `netlify/functions/`). Once a machine's run finishes:
+
+```bash
+UPLOAD_TOKEN=<ask Levi for this> python scripts/upload_results.py --tag pi
+```
+
+`--tag` is just a label so results from different machines don't collide —
+use something like `pi`, `laptop2`, `friend`. It zips `out/mc` and posts it;
+the results page lists every upload with a download link, no login needed
+(the upload token gates *writing*, not reading — the URL is not published
+anywhere and the data is not sensitive).
+
+Download each machine's zip, extract them into separately named folders,
+then combine them:
+
+```bash
+python scripts/merge_runs.py \
+  --run laptop1=path/to/laptop1_extracted \
+  --run pi=path/to/pi_extracted \
+  --run friend=path/to/friend_extracted \
+  --out out/merged
+```
+
+This is the step that actually matters, not just a formality: every
+machine's designs are named `r000000, r000001, ...` starting from zero, so
+without tagging, two machines' *completely different* hulls would collide
+under the same name. `merge_runs.py` handles that, and — more useful than
+the winner it picks — tells you whether the machines *agree*. If four
+independent random searches land on similar hulls, that's real confidence.
+If they disagree, the ranking is still sensitive to which designs happened
+to get sampled, and the honest move is a large confirmatory run on the
+consensus pick before trusting it (`merge_runs.py` prints that exact
+command).
+
+**What this setup does not do**: the results site is deployed directly, not
+wired to auto-redeploy from GitHub pushes — that link is one manual step in
+the Netlify dashboard (Site settings → Build & deploy → Link repository) if
+future code changes to the site should redeploy automatically. Not needed
+for today's functionality; the site already works.
+
+---
+
 ## How to read the dashboard
 
 **The trade-off chart** is the one that matters. Every design is a dot. Grey
