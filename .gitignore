@@ -5,3 +5,7 @@ out/
 .DS_Store
 .netlify/
 node_modules/
+run.log
+nohup.out
+panel.log
+.guest_state.json

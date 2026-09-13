@@ -727,6 +727,9 @@ scripts/
   report_design.py  deep dive on one hull, or compare several
   calibrate.py    turn a stopwatch into a calibrated drag model
   identify_material.py  work out which board you have, from two measurements
+  guest_panel.py  browser control panel for a lent machine -- no terminal needed
+  upload_results.py  send a machine's out/mc to the results site
+  merge_runs.py   combine several machines' results, check they agree
 data/
   joint_tests.json  YOUR bench measurements                        <- edit this
 tests/
