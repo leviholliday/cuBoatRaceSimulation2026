@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guest Shift</title>
+<meta name="description" content="Lend your Windows PC to the canoe hull search overnight -- download one file, paste one command, then a simple web page for everything else.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+:root{
+  --ink:#1a2332; --ink-soft:#4a5568; --ground:#f6f3ec; --panel:#ffffff;
+  --line:#ddd4bf; --line-soft:#eae3d3;
+  --accent:#b8501f; --accent-ink:#8a3c15; --accent-soft:#f1e2d3;
+  --mono-bg:#1a2332; --mono-text:#e9e4d6; --mono-dim:#8b93a3; --mono-accent:#e8a56a;
+  --good:#3f7d5c; --warn:#a6461f;
+  --font-display:"Archivo",system-ui,sans-serif;
+  --font-body:"Public Sans",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#eae4d6; --ink-soft:#a8a396; --ground:#181d27; --panel:#1f2530;
+    --line:#333c4a; --line-soft:#2a3140;
+    --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
+    --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
+    --good:#6bbf94; --warn:#e08a5c;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eae4d6; --ink-soft:#a8a396; --ground:#181d27; --panel:#1f2530;
+  --line:#333c4a; --line-soft:#2a3140;
+  --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
+  --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
+  --good:#6bbf94; --warn:#e08a5c;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink); font-family:var(--font-body);
+  font-size:16px; line-height:1.6; margin:0;
+}
+img{max-width:100%}
+.wrap{max-width:720px; margin:0 auto; padding:56px 24px 100px}
+
+h1{
+  font-family:var(--font-display); font-weight:800; font-size:clamp(30px,5vw,42px);
+  letter-spacing:-0.01em; text-wrap:balance; margin:0 0 14px;
+}
+.dek{color:var(--ink-soft); font-size:16.5px; max-width:56ch; margin:0 0 4px}
+.dek b{color:var(--ink); font-weight:600}
+
+.intro{
+  background:var(--panel); border-radius:12px; padding:20px 22px; margin-top:26px;
+  font-size:15px; color:var(--ink-soft); border:1px solid var(--line-soft);
+}
+.intro p{margin:0 0 10px; max-width:60ch}
+.intro p:last-child{margin-bottom:0}
+.intro b{color:var(--ink)}
+.stat-row{display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft)}
+.stat{font-family:var(--font-mono); font-size:13px}
+.stat b{display:block; font-family:var(--font-display); font-size:11px; text-transform:uppercase;
+  letter-spacing:0.06em; color:var(--accent-ink); font-weight:700; margin-bottom:2px}
+
+.phase{margin-top:56px; position:relative}
+.phase-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
+.phase-num{
+  font-family:var(--font-mono); font-weight:600; font-size:13px; color:var(--accent-ink);
+  background:var(--accent-soft); padding:3px 9px; border-radius:5px; letter-spacing:0.02em;
+  flex-shrink:0;
+}
+.phase h2{
+  font-family:var(--font-display); font-weight:700; font-size:22px; margin:0;
+  letter-spacing:-0.005em;
+}
+.phase-when{color:var(--ink-soft); font-size:14px; margin:0 0 20px 0}
+.phase p{max-width:64ch}
+
+.why{
+  border-left:3px solid var(--line); background:var(--panel); border-radius:0 8px 8px 0;
+  padding:14px 18px; margin:16px 0; font-size:14.5px; color:var(--ink-soft);
+}
+.why b{
+  display:block; font-family:var(--font-display); font-weight:700; font-size:11.5px;
+  text-transform:uppercase; letter-spacing:0.07em; color:var(--accent-ink); margin-bottom:5px;
+}
+.why code{color:var(--ink)}
+
+.cmdlabel{
+  font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft);
+  margin:18px 0 6px;
+}
+.cmd{
+  position:relative; background:var(--mono-bg); color:var(--mono-text);
+  font-family:var(--font-mono); font-size:13.5px; line-height:1.65;
+  border-radius:10px; padding:16px 60px 16px 18px;
+  white-space:pre-wrap; word-break:break-word; margin:0 0 4px;
+}
+.copy{
+  position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.14); color:var(--mono-text); font-family:var(--font-body);
+  font-size:11.5px; font-weight:600; padding:5px 9px; border-radius:6px; cursor:pointer;
+  transition:background 0.15s;
+}
+.copy:hover{background:rgba(255,255,255,0.16)}
+.copy:focus-visible{outline:2px solid var(--mono-accent); outline-offset:1px}
+.copy.done{background:var(--good); border-color:var(--good); color:#0f1a14}
+
+ol.steps{padding-left:22px; margin:14px 0}
+ol.steps li{margin-bottom:10px; max-width:62ch}
+ol.steps code, p code, li code{
+  background:var(--line-soft); padding:1.5px 6px; border-radius:4px;
+  font-family:var(--font-mono); font-size:0.92em;
+}
+
+.callout{
+  background:var(--accent-soft); border-radius:8px; padding:16px 18px; margin:20px 0;
+  font-size:14.5px; color:var(--ink);
+}
+.callout b{color:var(--accent-ink)}
+.callout.good{background:color-mix(in srgb, var(--good) 14%, var(--panel))}
+.callout.good b{color:var(--good)}
+
+.download-btn{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--font-display);
+  font-weight:700; font-size:15px; color:#fff9f2; background:var(--accent);
+  padding:12px 20px; border-radius:9px; text-decoration:none; transition:opacity 0.15s;
+}
+.download-btn:hover{opacity:0.9}
+
+.token-box{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:var(--mono-bg); border-radius:8px; padding:12px 16px; margin:14px 0; flex-wrap:wrap;
+}
+.token-box code{font-family:var(--font-mono); color:var(--mono-accent); font-size:14px; word-break:break-all}
+.token-box span{font-size:13px; color:var(--mono-dim)}
+
+.footer{
+  margin-top:64px; padding-top:22px; border-top:1px solid var(--line);
+  color:var(--ink-soft); font-size:13.5px;
+}
+.footer a{color:var(--accent-ink)}
+
+.panel-shot{
+  background:var(--mono-bg); border-radius:10px; padding:18px 20px; margin:16px 0;
+  font-family:var(--font-body);
+}
+.panel-shot .row{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.panel-shot .row:last-child{margin-bottom:0}
+.panel-shot label{
+  font-family:var(--font-display); font-weight:700; font-size:10.5px; text-transform:uppercase;
+  letter-spacing:0.06em; color:var(--mono-dim); width:88px; flex-shrink:0;
+}
+.panel-shot .fake-input{
+  flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14);
+  border-radius:6px; padding:6px 10px; font-family:var(--font-mono); font-size:13px; color:var(--mono-text);
+}
+.panel-shot .fake-btn{
+  font-family:var(--font-display); font-weight:700; font-size:12px; color:#fff9f2;
+  background:var(--accent); border-radius:7px; padding:7px 14px; flex-shrink:0;
+}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Guest Shift</h1>
+  <p class="dek">Levi could use your computer for a few hours overnight. Download one file, paste one command, then a simple web page for everything else — no coding required, and it leaves nothing behind when you're done.</p>
+
+  <div class="intro">
+    <p>He's building a cardboard canoe for a college engineering class, and the boat's hull shape gets picked by testing thousands of random designs against real physics — hull stability, cardboard strength, paddling speed — rather than guessing. More computers running overnight means more designs get checked before the race.</p>
+    <p>Your part: <b>~10 minutes of setup</b> — a download and one pasted command — then everything else happens in a browser tab — type your name, click a button, leave your PC on and connected overnight (or however long you can spare). It uses spare CPU only — a sliver of RAM, nothing installed outside one folder, and it's gone completely the moment you run the one cleanup command at the end.</p>
+    <div class="stat-row">
+      <div class="stat"><b>Needs</b>Windows 10 or 11</div>
+      <div class="stat"><b>RAM used</b>&lt; 1 GB</div>
+      <div class="stat"><b>Reversible</b>one command, below</div>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">01</span>
+      <h2>Turn on Linux-inside-Windows</h2>
+    </div>
+    <p class="phase-when">One time only. No typing — just a download.</p>
+    <p>The project's tooling is built for Linux/Mac terminals. Rather than hand-translate every command for Windows, this turns on <b>WSL</b> — a real, contained Linux environment that lives inside Windows without affecting anything else on your PC.</p>
+
+    <p style="margin:18px 0 10px">
+      <a href="/guest-setup.bat" class="download-btn">⬇ Download guest-setup.bat</a>
+    </p>
+    <p class="hint" style="margin:0 0 18px; font-size:14.5px; color:var(--ink-soft)">Double-click the downloaded file, click <b>Yes</b> on the one Windows permission popup, and let it run — that's the whole step.</p>
+
+    <ol class="steps">
+      <li>When it says "Done," restart your computer.</li>
+      <li>After it restarts, open the new <b>Ubuntu</b> app from your Start menu — that's the only terminal window you'll need, for one more command in step 2. It'll ask you to make up a username and password on first launch; anything works, it's local to this and unrelated to your Windows login.</li>
+    </ol>
+
+    <div class="why">
+      <b>What that file actually does</b>
+      It's a plain text script — free to open in Notepad first if you want to see for yourself. It just runs Windows's own <code>wsl --install</code> command for you, so you never have to open an admin terminal by hand.
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">02</span>
+      <h2>Get the project running</h2>
+    </div>
+    <p class="phase-when">One time only, right after step 1 — then never touch the terminal again.</p>
+    <p>This is the only command you'll ever type. Paste it into that new Ubuntu window and press enter — it installs a couple of small tools, downloads the code, sets it up, and immediately opens a normal web page where you'll do everything else:</p>
+
+    <div class="cmd" id="cmd-setup">sudo apt update && sudo apt install -y git python3-venv python3-pip && git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git && cd cuBoatRaceSimulation2026 && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && nohup .venv/bin/python scripts/guest_panel.py &gt; panel.log 2&gt;&amp;1 &amp;<button class="copy" data-target="cmd-setup">Copy</button></div>
+
+    <p style="font-size:14.5px; color:var(--ink-soft)">It'll ask for the password you just made up for Ubuntu partway through (that's normal for <code>sudo</code>) — type it and press enter, nothing will show on screen as you type, that's expected. A browser tab should then pop open on its own once it's ready (takes under a minute total). If it doesn't, open one yourself and go to <code>http://localhost:8420</code>.</p>
+
+    <div class="panel-shot">
+      <div class="row"><label>Your name</label><div class="fake-input" style="color:var(--mono-dim)">e.g. Aiden</div></div>
+      <div class="row"><label>Hours</label><div class="fake-input">8</div><span class="fake-btn">Test setup</span><span class="fake-btn">Start run</span></div>
+    </div>
+
+    <ol class="steps">
+      <li>The page offers to <b>add an icon to your desktop</b> — worth doing, so you can get back to it later without ever opening a terminal again.</li>
+      <li>Type your first name — it just labels your results so they don't get mixed up with anyone else's.</li>
+      <li><b>Click "Test setup" first.</b> It runs a 10-second check and tells you right there if anything's wrong, before you commit to leaving the machine on for hours.</li>
+      <li>Set how many hours you can leave the PC on (8 is a good default for overnight), then click <b>Start run</b>. The page then shows live status — searching, done, or if something went wrong — until it finishes.</li>
+      <li>When it's done, a <b>Send results to Levi</b> button appears right on the page. Click it — that's the whole job.</li>
+    </ol>
+
+    <div class="why">
+      <b>What just happened, and why you can close this terminal window</b>
+      <code>apt install</code> added two small standard Linux tools this fresh Ubuntu doesn't ship with by default. <code>git clone</code> downloaded Levi's code, <code>python3 -m venv .venv</code> built a private Python environment just for this, and <code>pip install</code> put its three small libraries inside that private copy — nothing touches the rest of your machine. The last piece, <code>nohup ... guest_panel.py &amp;</code>, starts that web page as its own background process, so closing this terminal doesn't stop it or the search. The panel is just a window into what's already happening; you can even close the browser tab and reopen <code>http://localhost:8420</code> (or your new desktop icon) later to check back in.
+    </div>
+
+    <div class="callout"><b>Need your computer back sooner?</b> Click <b>Stop</b> on the page. It finishes whatever hull it's checking, saves its progress, and stops cleanly — nothing is lost.</div>
+  </div>
+
+  <!-- CLEANUP -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">+</span>
+      <h2>Removing it afterward</h2>
+    </div>
+    <p class="phase-when">Whenever you want your computer back to exactly how it was.</p>
+    <p>One command, run in a normal Windows PowerShell (not inside the Ubuntu window) — this deletes the entire Linux environment and everything inside it in one shot:</p>
+
+    <div class="cmd" id="cmd-clean">wsl --unregister Ubuntu<button class="copy" data-target="cmd-clean">Copy</button></div>
+
+    <p style="font-size:14.5px; color:var(--ink-soft)">If you also want WSL itself gone, not just this Linux install: <code>wsl --uninstall</code>. Neither is required — most people just leave WSL on, since it uses no resources while nothing's running in it.</p>
+
+    <div class="callout good"><b>Nothing else on your PC was touched.</b> No registry changes outside WSL's own install, no background services, nothing that outlives that one command.</div>
+  </div>
+
+  <div class="footer">
+    Part of a cardboard canoe hull simulator for a college engineering class's lake race. Questions go to Levi, not this page.
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.copy[data-target]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.target);
+    const text = el.textContent.replace(/Copy\s*$/, '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('done');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); }, 1500);
+    }).catch(() => {});
+  });
+});
+</script>
+
+</body>
+</html>
