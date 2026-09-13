@@ -196,12 +196,13 @@ def current_status() -> dict:
     }
 
 
-def start_run(name: str, hours: float) -> dict:
+def start_run(name: str, hours: float, seed: int | None = None) -> dict:
     with _lock:
         state = load_state()
         if is_running(state.get("pid")):
             return {"ok": False, "error": "A run is already going -- stop it first."}
-        seed = int.from_bytes(os.urandom(2), "big")
+        if seed is None:
+            seed = int.from_bytes(os.urandom(2), "big")
         if LOG_PATH.exists():
             LOG_PATH.unlink()
         log_fh = open(LOG_PATH, "w")
@@ -331,6 +332,11 @@ button:disabled{opacity:0.45; cursor:default}
 .dot.error{background:var(--warn)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
 .phase-label{font-family:var(--font-display); font-weight:700; font-size:15px}
+.seed-tag{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-soft);
+  background:var(--ground); border:1px solid var(--line); border-radius:6px;
+  padding:2px 8px; margin-left:auto;
+}
 .detail{color:var(--ink-soft); font-size:14px; margin:0 0 14px}
 .bar{height:8px; border-radius:5px; background:var(--line-soft); overflow:hidden; margin-bottom:14px}
 .bar-fill{height:100%; background:var(--accent); transition:width 0.4s ease}
@@ -375,8 +381,12 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
         <label for="hours">Hours to run</label>
         <input type="number" id="hours" value="8" min="0.02" step="0.5">
       </div>
+      <div class="field">
+        <label for="seed">Seed (optional)</label>
+        <input type="number" id="seed" placeholder="auto" min="0" step="1">
+      </div>
     </div>
-    <p class="hint">8 hours is a good overnight default. It measures its own speed first, then fits the search into whatever window you give it -- it will never run long.</p>
+    <p class="hint">8 hours is a good overnight default. It measures its own speed first, then fits the search into whatever window you give it -- it will never run long. Leave Seed blank and one is picked automatically -- only fill it in if Levi asked you to use a specific number.</p>
     <div class="actions">
       <button class="btn-secondary" id="btn-test">Test setup (10 sec)</button>
       <button class="btn-primary" id="btn-start">Start run</button>
@@ -388,6 +398,7 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
     <div class="status">
       <span class="dot" id="status-dot"></span>
       <span class="phase-label" id="status-label">--</span>
+      <span class="seed-tag" id="seed-tag" hidden></span>
     </div>
     <div class="bar" id="bar-wrap" hidden><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
     <p class="detail" id="status-detail"></p>
@@ -407,7 +418,7 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
 
 <script>
 const $ = id => document.getElementById(id);
-const nameEl = $('name'), hoursEl = $('hours');
+const nameEl = $('name'), hoursEl = $('hours'), seedEl = $('seed');
 
 nameEl.value = localStorage.getItem('guestName') || '';
 nameEl.addEventListener('input', () => localStorage.setItem('guestName', nameEl.value));
@@ -457,11 +468,12 @@ $('btn-start').addEventListener('click', async () => {
   const name = nameEl.value.trim();
   if (!name) { nameEl.focus(); return; }
   const hours = parseFloat(hoursEl.value) || 8;
+  const seed = seedEl.value.trim() === '' ? null : parseInt(seedEl.value, 10);
   const btn = $('btn-start');
   btn.disabled = true; btn.textContent = 'Starting...';
   const r = await api('/api/start', {
     method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, hours }),
+    body: JSON.stringify({ name, hours, seed }),
   });
   btn.disabled = false; btn.textContent = 'Start run';
   if (!r.ok) { alert(r.error); return; }
@@ -503,6 +515,9 @@ async function poll() {
   card.hidden = s.phase === 'idle' && !s.started_at;
   $('status-dot').className = 'dot ' + s.phase;
   $('status-label').textContent = PHASE_LABEL[s.phase] || s.phase;
+  const seedTag = $('seed-tag');
+  seedTag.hidden = s.seed == null;
+  if (s.seed != null) seedTag.textContent = 'seed ' + s.seed;
   $('status-detail').textContent = s.detail || '';
   $('bar-wrap').hidden = s.progress == null;
   if (s.progress != null) $('bar-fill').style.width = s.progress + '%';
@@ -561,7 +576,14 @@ class Handler(BaseHTTPRequestHandler):
                 hours = max(0.02, min(48.0, float(data.get("hours", 8))))
             except (TypeError, ValueError):
                 hours = 8.0
-            self._send_json(start_run(name, hours))
+            seed = None
+            raw_seed = data.get("seed")
+            if raw_seed not in (None, ""):
+                try:
+                    seed = max(0, min(2**31 - 1, int(raw_seed)))
+                except (TypeError, ValueError):
+                    seed = None
+            self._send_json(start_run(name, hours, seed))
         elif self.path == "/api/stop":
             self._send_json(stop_run())
         elif self.path == "/api/test":
