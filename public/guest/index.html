@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Guest Shift</title>
-<meta name="description" content="Lend your computer to the canoe hull search overnight -- a couple of setup steps, then a simple web page for everything else.">
+<meta name="description" content="Lend your computer to the canoe hull search overnight -- one setup command, then a simple web page for everything else.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 :root{
@@ -12,7 +12,7 @@
   --line:#ddd4bf; --line-soft:#eae3d3;
   --accent:#b8501f; --accent-ink:#8a3c15; --accent-soft:#f1e2d3;
   --mono-bg:#1a2332; --mono-text:#e9e4d6; --mono-dim:#8b93a3; --mono-accent:#e8a56a;
-  --good:#3f7d5c; --warn:#a6461f;
+  --good:#3f7d5c; --warn:#a6461f; --warn-soft:#f6e3db;
   --font-display:"Archivo",system-ui,sans-serif;
   --font-body:"Public Sans",system-ui,-apple-system,sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -24,7 +24,7 @@
     --line:#333c4a; --line-soft:#2a3140;
     --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
     --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
-    --good:#6bbf94; --warn:#e08a5c;
+    --good:#6bbf94; --warn:#e08a5c; --warn-soft:#332019;
   }
 }
 :root[data-theme="dark"]{
@@ -32,7 +32,7 @@
   --line:#333c4a; --line-soft:#2a3140;
   --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
   --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
-  --good:#6bbf94; --warn:#e08a5c;
+  --good:#6bbf94; --warn:#e08a5c; --warn-soft:#332019;
 }
 
 *{box-sizing:border-box}
@@ -40,7 +40,6 @@ body{
   background:var(--ground); color:var(--ink); font-family:var(--font-body);
   font-size:16px; line-height:1.6; margin:0;
 }
-img{max-width:100%}
 .wrap{max-width:720px; margin:0 auto; padding:56px 24px 100px}
 
 h1{
@@ -48,7 +47,6 @@ h1{
   letter-spacing:-0.01em; text-wrap:balance; margin:0 0 14px;
 }
 .dek{color:var(--ink-soft); font-size:16.5px; max-width:56ch; margin:0 0 4px}
-.dek b{color:var(--ink); font-weight:600}
 
 .intro{
   background:var(--panel); border-radius:12px; padding:20px 22px; margin-top:26px;
@@ -69,10 +67,11 @@ h1{
   cursor:pointer; transition:background 0.15s, color 0.15s, border-color 0.15s;
 }
 .os-tab-btn:hover{border-color:var(--accent)}
+.os-tab-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .os-tab-btn.active{color:#fff9f2; background:var(--accent); border-color:var(--accent)}
-.os-tab-note{font-size:13px; color:var(--ink-soft); margin:8px 0 0}
+.os-tab-note{font-size:13px; color:var(--ink-soft); margin:8px 0 0; min-height:1.3em}
 
-.phase{margin-top:56px; position:relative}
+.phase{margin-top:56px}
 .phase-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
 .phase-num{
   font-family:var(--font-mono); font-weight:600; font-size:13px; color:var(--accent-ink);
@@ -85,6 +84,7 @@ h1{
 }
 .phase-when{color:var(--ink-soft); font-size:14px; margin:0 0 20px 0}
 .phase p{max-width:64ch}
+.note{font-size:14.5px; color:var(--ink-soft)}
 
 .why{
   border-left:3px solid var(--line); background:var(--panel); border-radius:0 8px 8px 0;
@@ -96,10 +96,6 @@ h1{
 }
 .why code{color:var(--ink)}
 
-.cmdlabel{
-  font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft);
-  margin:18px 0 6px;
-}
 .cmd{
   position:relative; background:var(--mono-bg); color:var(--mono-text);
   font-family:var(--font-mono); font-size:13.5px; line-height:1.65;
@@ -118,16 +114,19 @@ h1{
 
 ol.steps{padding-left:22px; margin:14px 0}
 ol.steps li{margin-bottom:10px; max-width:62ch}
-ol.steps code, p code, li code{
+ol.steps code, p code, li code, .callout code{
   background:var(--line-soft); padding:1.5px 6px; border-radius:4px;
   font-family:var(--font-mono); font-size:0.92em;
 }
+kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px}
 
 .callout{
   background:var(--accent-soft); border-radius:8px; padding:16px 18px; margin:20px 0;
   font-size:14.5px; color:var(--ink);
 }
 .callout b{color:var(--accent-ink)}
+.callout.warn{background:var(--warn-soft)}
+.callout.warn b{color:var(--warn)}
 .callout.good{background:color-mix(in srgb, var(--good) 14%, var(--panel))}
 .callout.good b{color:var(--good)}
 
@@ -138,31 +137,17 @@ ol.steps code, p code, li code{
 }
 .download-btn:hover{opacity:0.9}
 
-.token-box{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  background:var(--mono-bg); border-radius:8px; padding:12px 16px; margin:14px 0; flex-wrap:wrap;
-}
-.token-box code{font-family:var(--font-mono); color:var(--mono-accent); font-size:14px; word-break:break-all}
-.token-box span{font-size:13px; color:var(--mono-dim)}
-
-.footer{
-  margin-top:64px; padding-top:22px; border-top:1px solid var(--line);
-  color:var(--ink-soft); font-size:13.5px;
-}
-.footer a{color:var(--accent-ink)}
-
 .panel-shot{
   background:var(--mono-bg); border-radius:10px; padding:18px 20px; margin:16px 0;
-  font-family:var(--font-body);
 }
-.panel-shot .row{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.panel-shot .row{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
 .panel-shot .row:last-child{margin-bottom:0}
-.panel-shot label{
+.panel-shot .lbl{
   font-family:var(--font-display); font-weight:700; font-size:10.5px; text-transform:uppercase;
   letter-spacing:0.06em; color:var(--mono-dim); width:88px; flex-shrink:0;
 }
 .panel-shot .fake-input{
-  flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14);
+  flex:1; min-width:80px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14);
   border-radius:6px; padding:6px 10px; font-family:var(--font-mono); font-size:13px; color:var(--mono-text);
 }
 .panel-shot .fake-btn{
@@ -170,13 +155,10 @@ ol.steps code, p code, li code{
   background:var(--accent); border-radius:7px; padding:7px 14px; flex-shrink:0;
 }
 
-.machine-block{margin-top:24px; padding-top:22px; border-top:1px dashed var(--line)}
-.machine-block:first-child{margin-top:0; padding-top:0; border-top:none}
-.machine-name{
-  display:flex; align-items:center; gap:10px; font-family:var(--font-display);
-  font-weight:700; font-size:15px; margin-bottom:4px;
+.footer{
+  margin-top:64px; padding-top:22px; border-top:1px solid var(--line);
+  color:var(--ink-soft); font-size:13.5px;
 }
-.dot{width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0}
 
 [hidden]{display:none !important}
 </style>
@@ -189,194 +171,161 @@ ol.steps code, p code, li code{
 <div class="wrap">
 
   <h1>Guest Shift</h1>
-  <p class="dek">Levi could use your computer for a few hours overnight. A couple of setup steps, then a simple web page for everything else — no coding required, and it leaves nothing behind when you're done.</p>
+  <p class="dek">Levi could use your computer for a few hours overnight. One setup command, then a simple web page for everything else — no coding, and one command removes it all when you're done.</p>
 
   <div class="intro">
     <p>He's building a cardboard canoe for a college engineering class, and the boat's hull shape gets picked by testing thousands of random designs against real physics — hull stability, cardboard strength, paddling speed — rather than guessing. More computers running overnight means more designs get checked before the race.</p>
-    <p>Your part: <b>~10 minutes of setup</b>, then everything else happens in a browser tab — type your name, click a button, leave your PC on and connected overnight (or however long you can spare). It uses spare CPU only — a sliver of RAM, nothing installed outside one folder, and it's gone completely the moment you run the one cleanup command at the end.</p>
+    <p>Your part: <b>about 10 minutes of setup</b>, then leave the computer on and plugged in overnight (or however long you can spare). It uses spare CPU and under 1&nbsp;GB of RAM, and everything lives in one folder.</p>
     <div class="stat-row">
-      <div class="stat"><b>Needs</b>Windows, Mac, or Linux</div>
+      <div class="stat"><b>Works on</b>Windows, Mac, Linux, Pi</div>
       <div class="stat"><b>RAM used</b>&lt; 1 GB</div>
-      <div class="stat"><b>Reversible</b>one command, below</div>
+      <div class="stat"><b>To remove</b>one command</div>
     </div>
   </div>
 
-  <div class="os-tabs" role="tablist">
+  <div class="os-tabs" role="tablist" aria-label="Your computer">
     <button class="os-tab-btn" data-os="windows" role="tab">Windows</button>
     <button class="os-tab-btn" data-os="mac" role="tab">Mac</button>
-    <button class="os-tab-btn" data-os="linux" role="tab">Linux</button>
+    <button class="os-tab-btn" data-os="linux" role="tab">Linux / Raspberry Pi</button>
   </div>
   <p class="os-tab-note" id="os-detect-note"></p>
 
   <!-- ===================== WINDOWS ===================== -->
-  <div class="os-panel" data-os="windows">
+  <div data-os-only="windows">
 
-    <!-- STEP 1 -->
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">01</span>
         <h2>Turn on Linux-inside-Windows</h2>
       </div>
       <p class="phase-when">One time only. No typing — just a download.</p>
-      <p>The project's tooling is built for Linux/Mac terminals. Rather than hand-translate every command for Windows, this turns on <b>WSL</b> — a real, contained Linux environment that lives inside Windows without affecting anything else on your PC.</p>
+      <p>The simulator is built for Linux and Mac terminals, so this turns on <b>WSL</b> — a real, contained Linux that lives inside Windows without touching anything else on your PC.</p>
 
       <p style="margin:18px 0 10px">
         <a href="/guest-setup.bat" class="download-btn">⬇ Download guest-setup.bat</a>
       </p>
-      <p class="hint" style="margin:0 0 18px; font-size:14.5px; color:var(--ink-soft)">Double-click the downloaded file, click <b>Yes</b> on the one Windows permission popup, and let it run — that's the whole step.</p>
+      <p class="note" style="margin:0 0 18px">Double-click the downloaded file, click <b>Yes</b> on the Windows permission popup, and let it run.</p>
 
       <ol class="steps">
         <li>When it says "Done," restart your computer.</li>
-        <li>After it restarts, open the new <b>Ubuntu</b> app from your Start menu — that's the only terminal window you'll need, for one more command in step 2. It'll ask you to make up a username and password on first launch; anything works, it's local to this and unrelated to your Windows login.</li>
+        <li>After it restarts, open the new <b>Ubuntu</b> app from the Start menu. The first time, it asks you to make up a username and password — anything works; it's only for this Linux, not your Windows login.</li>
       </ol>
 
       <div class="why">
-        <b>What that file actually does</b>
-        It's a plain text script — free to open in Notepad first if you want to see for yourself. It just runs Windows's own <code>wsl --install</code> command for you, so you never have to open an admin terminal by hand.
+        <b>What that file does</b>
+        It's plain text — open it in Notepad first if you like. It just runs Windows's own <code>wsl --install</code> for you, so you never have to open an admin terminal by hand.
       </div>
     </div>
 
-    <!-- STEP 2 -->
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">02</span>
-        <h2>Get the project running</h2>
+        <h2>Paste one command into Ubuntu</h2>
       </div>
-      <p class="phase-when">One time only, right after step 1 — then never touch the terminal again.</p>
-      <p>This is the only command you'll ever type. Paste it into that new Ubuntu window and press enter — it installs a couple of small tools, downloads the code, sets it up, and immediately opens a normal web page where you'll do everything else:</p>
+      <p class="phase-when">Right after step 1. It's the only command you'll ever type.</p>
+      <p>Paste this into the Ubuntu window (right-click pastes) and press <kbd>Enter</kbd>:</p>
 
-      <div class="cmd" id="cmd-setup-win">(sudo apt update && sudo apt install -y git python3-venv python3-pip) || true; git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git && cd cuBoatRaceSimulation2026 && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && nohup .venv/bin/python scripts/guest_panel.py &gt; panel.log 2&gt;&amp;1 &amp;<button class="copy" data-target="cmd-setup-win">Copy</button></div>
+      <div class="cmd" id="cmd-setup-win">cd ~ &amp;&amp; { command -v git &gt;/dev/null &amp;&amp; python3 -c "import ensurepip" 2&gt;/dev/null || { sudo apt update &amp;&amp; sudo apt install -y git python3-venv python3-pip || true; }; } &amp;&amp; { [ -d cuBoatRaceSimulation2026 ] || git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git; } &amp;&amp; cd cuBoatRaceSimulation2026 &amp;&amp; { git pull -q --ff-only || true; } &amp;&amp; python3 -m venv .venv &amp;&amp; .venv/bin/pip install --disable-pip-version-check -r requirements.txt &amp;&amp; .venv/bin/python scripts/guest_panel.py<button class="copy" data-target="cmd-setup-win">Copy</button></div>
 
-      <p style="font-size:14.5px; color:var(--ink-soft)">It'll ask for the password you just made up for Ubuntu partway through (that's normal for <code>sudo</code>) — type it and press enter, nothing will show on screen as you type, that's expected. A browser tab should then pop open on its own once it's ready (takes under a minute total). If it doesn't, open one yourself and go to <code>http://localhost:8420</code>.</p>
+      <p class="note">Partway through it asks for the Ubuntu password you just made up — type it and press <kbd>Enter</kbd> (nothing shows while you type; that's normal). When it's ready, a little boat appears in the window along with the page's address, and your browser opens it. If the browser doesn't open, go to <code>http://localhost:8420</code>.</p>
 
-      <div class="panel-shot">
-        <div class="row"><label>Your name</label><div class="fake-input" style="color:var(--mono-dim)">e.g. Aiden</div></div>
-        <div class="row"><label>Hours</label><div class="fake-input">8</div><span class="fake-btn">Test setup</span><span class="fake-btn">Start run</span></div>
-      </div>
-
-      <ol class="steps">
-        <li>The page offers to <b>add an icon to your desktop</b> — worth doing, so you can get back to it later without ever opening a terminal again.</li>
-        <li>Type your first name — it just labels your results so they don't get mixed up with anyone else's.</li>
-        <li><b>Click "Test setup" first.</b> It runs a 10-second check and tells you right there if anything's wrong, before you commit to leaving the machine on for hours.</li>
-        <li>Set how many hours you can leave the PC on (8 is a good default for overnight), then click <b>Start run</b>. The page then shows live status — searching, done, or if something went wrong — until it finishes.</li>
-        <li>When it's done, a <b>Send results to Levi</b> button appears right on the page. Click it — that's the whole job.</li>
-      </ol>
-
-      <div class="why">
-        <b>What just happened, and why you can close this terminal window</b>
-        The first part tries to add two small standard Linux tools this fresh Ubuntu doesn't ship with by default. That's wrapped in <code>|| true</code> on purpose: some setups throw warnings there even when the tools are already present, and this way that doesn't stop the rest of the command from running. <code>git clone</code> downloaded Levi's code, <code>python3 -m venv .venv</code> built a private Python environment just for this, and <code>pip install</code> put its three small libraries inside that private copy — nothing touches the rest of your machine. The last piece, <code>nohup ... guest_panel.py &amp;</code>, starts that web page as its own background process, so closing this terminal doesn't stop it or the search.
-      </div>
-
-      <div class="callout"><b>Need your computer back sooner?</b> Click <b>Stop</b> on the page. It finishes whatever hull it's checking, saves its progress, and stops cleanly — nothing is lost.</div>
+      <div class="callout warn"><b>Leave the Ubuntu window open while the search runs.</b> Minimizing it is fine. On Windows, closing it can shut Linux down and stop the search. Closing the <i>browser</i> is always fine.</div>
     </div>
   </div>
 
   <!-- ===================== MAC ===================== -->
-  <div class="os-panel" data-os="mac" hidden>
-
-    <!-- STEP 1 -->
+  <div data-os-only="mac" hidden>
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">01</span>
-        <h2>Open Terminal and run one command</h2>
+        <h2>Paste one command into Terminal</h2>
       </div>
-      <p class="phase-when">One time only, then never touch the terminal again.</p>
-      <p>Macs already come with everything this needs built in — no extra install like Windows needs. Open <b>Terminal</b> (press <kbd>Cmd</kbd>+<kbd>Space</kbd>, type "Terminal", hit enter), paste this in, and press enter. It downloads the code, sets it up, and immediately opens a normal web page where you'll do everything else:</p>
+      <p class="phase-when">One time only. It's the only command you'll ever type.</p>
+      <p>Macs already have what this needs. Open <b>Terminal</b> (press <kbd>Cmd</kbd>+<kbd>Space</kbd>, type "Terminal", press <kbd>Enter</kbd>), paste this, and press <kbd>Enter</kbd>:</p>
 
-      <div class="cmd" id="cmd-setup-mac">git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git && cd cuBoatRaceSimulation2026 && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && nohup .venv/bin/python scripts/guest_panel.py &gt; panel.log 2&gt;&amp;1 &amp;<button class="copy" data-target="cmd-setup-mac">Copy</button></div>
+      <div class="cmd" id="cmd-setup-mac">cd ~ &amp;&amp; { [ -d cuBoatRaceSimulation2026 ] || git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git; } &amp;&amp; cd cuBoatRaceSimulation2026 &amp;&amp; { git pull -q --ff-only || true; } &amp;&amp; python3 -m venv .venv &amp;&amp; .venv/bin/pip install --disable-pip-version-check -r requirements.txt &amp;&amp; .venv/bin/python scripts/guest_panel.py start<button class="copy" data-target="cmd-setup-mac">Copy</button></div>
 
-      <p style="font-size:14.5px; color:var(--ink-soft)">A browser tab should pop open on its own once it's ready (takes under a minute). If it doesn't, open one yourself and go to <code>http://localhost:8420</code>.</p>
+      <p class="note">When it's ready, a little boat appears in Terminal along with the page's address, and your browser opens it. If the browser doesn't open, go to <code>http://localhost:8420</code>. After that you can close Terminal — the search keeps running on its own.</p>
 
-      <div class="callout"><b>If macOS pops up "Install Command Line Developer Tools?"</b> — that's normal on a Mac that hasn't used <code>git</code> before. Click <b>Install</b>, wait for it to finish (a couple of minutes), then paste the exact same command again.</div>
-
-      <div class="panel-shot">
-        <div class="row"><label>Your name</label><div class="fake-input" style="color:var(--mono-dim)">e.g. Aiden</div></div>
-        <div class="row"><label>Hours</label><div class="fake-input">8</div><span class="fake-btn">Test setup</span><span class="fake-btn">Start run</span></div>
-      </div>
-
-      <ol class="steps">
-        <li>The page offers to <b>add an icon to your desktop</b> — worth doing, so you can get back to it later without ever opening a terminal again.</li>
-        <li>Type your first name — it just labels your results so they don't get mixed up with anyone else's.</li>
-        <li><b>Click "Test setup" first.</b> It runs a 10-second check and tells you right there if anything's wrong, before you commit to leaving the machine on for hours.</li>
-        <li>Set how many hours you can leave the PC on (8 is a good default for overnight), then click <b>Start run</b>. The page then shows live status — searching, done, or if something went wrong — until it finishes.</li>
-        <li>When it's done, a <b>Send results to Levi</b> button appears right on the page. Click it — that's the whole job.</li>
-      </ol>
-
-      <div class="why">
-        <b>What just happened, and why you can close this terminal window</b>
-        <code>git clone</code> downloaded Levi's code, <code>python3 -m venv .venv</code> built a private Python environment just for this, and <code>pip install</code> put its three small libraries inside that private copy — nothing touches the rest of your Mac. The last piece, <code>nohup ... guest_panel.py &amp;</code>, starts that web page as its own background process, so closing this terminal doesn't stop it or the search.
-      </div>
-
-      <div class="callout"><b>Need your computer back sooner?</b> Click <b>Stop</b> on the page. It finishes whatever hull it's checking, saves its progress, and stops cleanly — nothing is lost.</div>
+      <div class="callout"><b>If a popup asks to install "command line developer tools"</b> — that's normal on a Mac that hasn't used these tools before. Click <b>Install</b>, wait for it to finish, then paste the same command again.</div>
     </div>
   </div>
 
   <!-- ===================== LINUX ===================== -->
-  <div class="os-panel" data-os="linux" hidden>
-
-    <!-- STEP 1 -->
+  <div data-os-only="linux" hidden>
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">01</span>
-        <h2>Open a terminal and run one command</h2>
+        <h2>Paste one command into a terminal</h2>
       </div>
-      <p class="phase-when">One time only, then never touch the terminal again.</p>
-      <p>Paste this into your terminal and press enter. It tries to add a couple of small tools this might not already have, downloads the code, sets it up, and immediately opens a normal web page where you'll do everything else:</p>
+      <p class="phase-when">One time only. It's the only command you'll ever type.</p>
+      <p>Open a terminal (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd> on most desktops, including Raspberry Pi OS — or SSH in), paste this, and press <kbd>Enter</kbd>:</p>
 
-      <div class="cmd" id="cmd-setup-linux">(sudo apt update && sudo apt install -y git python3-venv python3-pip) || true; git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git && cd cuBoatRaceSimulation2026 && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && nohup .venv/bin/python scripts/guest_panel.py &gt; panel.log 2&gt;&amp;1 &amp;<button class="copy" data-target="cmd-setup-linux">Copy</button></div>
+      <div class="cmd" id="cmd-setup-linux">cd ~ &amp;&amp; { command -v git &gt;/dev/null &amp;&amp; python3 -c "import ensurepip" 2&gt;/dev/null || { sudo apt update &amp;&amp; sudo apt install -y git python3-venv python3-pip || true; }; } &amp;&amp; { [ -d cuBoatRaceSimulation2026 ] || git clone https://github.com/leviholliday/cuBoatRaceSimulation2026.git; } &amp;&amp; cd cuBoatRaceSimulation2026 &amp;&amp; { git pull -q --ff-only || true; } &amp;&amp; python3 -m venv .venv &amp;&amp; .venv/bin/pip install --disable-pip-version-check -r requirements.txt &amp;&amp; .venv/bin/python scripts/guest_panel.py start<button class="copy" data-target="cmd-setup-linux">Copy</button></div>
 
-      <p style="font-size:14.5px; color:var(--ink-soft)">If it asks for your password partway through (normal for <code>sudo</code>), type it and press enter — nothing shows on screen as you type, that's expected. A browser tab should then pop open on its own once it's ready. If it doesn't, open one yourself and go to <code>http://localhost:8420</code>.</p>
+      <p class="note">If it asks for your password (only when it needs to install git or Python's venv tools), type it and press <kbd>Enter</kbd> — nothing shows while you type. When it's ready, a little boat appears in the terminal along with the page's address, and your browser opens it. After that you can close the terminal — the search keeps running on its own.</p>
 
-      <div class="callout"><b>Not using Ubuntu/Debian/Kali?</b> The <code>apt</code> part won't work on Fedora, Arch, and similar — just make sure <code>git</code> and <code>python3</code> (with venv and pip) are installed however your system normally does that, then paste and run everything in the command starting from <code>git clone</code> onward.</div>
-
-      <div class="panel-shot">
-        <div class="row"><label>Your name</label><div class="fake-input" style="color:var(--mono-dim)">e.g. Aiden</div></div>
-        <div class="row"><label>Hours</label><div class="fake-input">8</div><span class="fake-btn">Test setup</span><span class="fake-btn">Start run</span></div>
-      </div>
-
-      <ol class="steps">
-        <li>The page offers to <b>add an icon to your desktop</b> — worth doing, so you can get back to it later without ever opening a terminal again.</li>
-        <li>Type your first name — it just labels your results so they don't get mixed up with anyone else's.</li>
-        <li><b>Click "Test setup" first.</b> It runs a 10-second check and tells you right there if anything's wrong, before you commit to leaving the machine on for hours.</li>
-        <li>Set how many hours you can leave the PC on (8 is a good default for overnight), then click <b>Start run</b>. The page then shows live status — searching, done, or if something went wrong — until it finishes.</li>
-        <li>When it's done, a <b>Send results to Levi</b> button appears right on the page. Click it — that's the whole job.</li>
-      </ol>
+      <div class="callout"><b>No screen on this computer?</b> On a Raspberry Pi you reach over SSH, nothing can pop up there — so the terminal shows a different address instead, like <code>http://192.168.1.23:8420</code>. Open that on your phone or laptop, on the same Wi-Fi.</div>
 
       <div class="why">
-        <b>Why it still goes through even if the first part fails</b>
-        <code>(sudo apt update && sudo apt install ...) || true</code> means: try to install those tools, but don't let a failure there stop everything after it. Some setups (rolling-release distros, VMs, security-focused ones like Kali) can throw apt errors even when the tools you actually need are already installed. If <code>git</code> or <code>python3</code> genuinely aren't there, the next part of the command will fail with its own clear error instead of silently hanging at the apt step — send that error to Levi if you see one.
+        <b>If the install part complains</b>
+        It only tries to install git and Python's venv tools if they're missing, and a failure there won't stop the rest of the command — some setups (Kali, VMs, rolling-release distros) complain even when the tools are already there. Not on Ubuntu, Debian, Kali or Raspberry Pi OS? Install <code>git</code> and <code>python3</code> with venv the way your system normally does, then paste the command again.
       </div>
-
-      <div class="callout"><b>Need your computer back sooner?</b> Click <b>Stop</b> on the page. It finishes whatever hull it's checking, saves its progress, and stops cleanly — nothing is lost.</div>
     </div>
   </div>
 
-  <!-- CLEANUP -->
+  <!-- ===================== ALL COMPUTERS ===================== -->
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num" id="use-num">03</span>
+      <h2>Use the control page</h2>
+    </div>
+    <p class="phase-when">Everything from here on happens in the browser.</p>
+
+    <div class="panel-shot" aria-hidden="true">
+      <div class="row"><span class="lbl">Your name</span><div class="fake-input" style="color:var(--mono-dim)">e.g. Aiden</div></div>
+      <div class="row"><span class="lbl">Hours</span><div class="fake-input">8</div><span class="fake-btn">Test setup</span><span class="fake-btn">Start run</span></div>
+    </div>
+
+    <ol class="steps">
+      <li>Click <b>Add to desktop</b> when the page offers it. The icon starts everything back up later — even after a restart — without a terminal.</li>
+      <li>Type your first name. It labels your results so they don't get mixed up with anyone else's.</li>
+      <li><b>Click "Test setup" first.</b> It's a quick check that tells you right there if anything's wrong.</li>
+      <li>Set how many hours you can leave the computer on (8 is a good overnight default) and click <b>Start run</b>. The page shows live status until it finishes.</li>
+      <li>When it's done, click <b>Send results to Levi</b>. That's the whole job — thank you!</li>
+    </ol>
+
+    <div class="callout"><b>Keep it plugged in and awake.</b> A computer that goes to sleep pauses the search. <span data-os-only="windows">In Settings → System → Power, set sleep to "Never" while plugged in.</span><span data-os-only="mac" hidden>Your Mac stays awake by itself while a search runs, as long as the lid stays open.</span><span data-os-only="linux" hidden>If your desktop sleeps on its own, turn that off in its power settings.</span></div>
+
+    <div class="callout"><b>If the computer restarts, or you need it back.</b> Click <b>Stop</b> on the page any time — nothing is lost. After a restart, double-click the <b>Canoe Hull Search</b> icon (or paste the setup command again) and click <b>Start run</b> — it picks up where it left off. Pasting the setup command again is also how you get an update if Levi mentions one.</div>
+  </div>
+
+  <!-- ===================== REMOVAL ===================== -->
   <div class="phase">
     <div class="phase-head">
       <span class="phase-num">+</span>
       <h2>Removing it afterward</h2>
     </div>
-    <p class="phase-when">Whenever you want your computer back to exactly how it was.</p>
+    <p class="phase-when">Whenever you want your computer back exactly how it was.</p>
 
-    <div class="machine-block">
-      <div class="machine-name"><span class="dot"></span>Windows (used WSL)</div>
-      <p style="font-size:14.5px; color:var(--ink-soft); margin:0 0 10px">Run in a normal Windows PowerShell (not inside the Ubuntu window) — this deletes the entire Linux environment and everything inside it in one shot:</p>
-      <div class="cmd" id="cmd-clean-win">wsl --unregister Ubuntu<button class="copy" data-target="cmd-clean-win">Copy</button></div>
-      <p style="font-size:14.5px; color:var(--ink-soft); margin-top:10px">If you also want WSL itself gone, not just this Linux install: <code>wsl --uninstall</code>. Neither is required — most people just leave WSL on, since it uses no resources while nothing's running in it.</p>
+    <div class="callout warn"><b>Send your results first.</b> Removing it deletes them from this computer.</div>
+
+    <div data-os-only="windows">
+      <p>Open <b>Windows PowerShell</b> (not the Ubuntu window), paste this, and press <kbd>Enter</kbd>. It removes the desktop icon and deletes the whole Linux install — the search, the page, and everything in them:</p>
+      <div class="cmd" id="cmd-clean-win">Remove-Item "$([Environment]::GetFolderPath('Desktop'))\Canoe Hull Search.*" -ErrorAction SilentlyContinue; wsl --unregister Ubuntu<button class="copy" data-target="cmd-clean-win">Copy</button></div>
+      <p class="note">That leaves WSL itself turned on, which uses nothing while it's idle. To turn it off too, also run <code>wsl --uninstall</code>.</p>
     </div>
 
-    <div class="machine-block">
-      <div class="machine-name"><span class="dot"></span>Mac or Linux</div>
-      <p style="font-size:14.5px; color:var(--ink-soft); margin:0 0 10px">Nothing was installed system-wide — just delete the folder:</p>
-      <div class="cmd" id="cmd-clean-native">rm -rf ~/cuBoatRaceSimulation2026<button class="copy" data-target="cmd-clean-native">Copy</button></div>
+    <div data-os-only="mac linux" hidden>
+      <p>Paste this into a terminal and press <kbd>Enter</kbd>. It asks you to type <b>yes</b>, then stops the search and the page, removes the desktop icon, and deletes the folder:</p>
+      <div class="cmd" id="cmd-clean-native">~/cuBoatRaceSimulation2026/.venv/bin/python ~/cuBoatRaceSimulation2026/scripts/guest_panel.py uninstall<button class="copy" data-target="cmd-clean-native">Copy</button></div>
     </div>
 
-    <div class="callout good"><b>Nothing else on your computer was touched.</b> No registry changes outside WSL's own install (Windows), no background services, nothing that outlives that one command.</div>
+    <div class="callout good"><b>Nothing else on your computer was touched.</b> No background services, no settings changed, nothing left behind.</div>
   </div>
 
   <div class="footer">
-    Part of a cardboard canoe hull simulator for a college engineering class's lake race. Questions go to Levi, not this page.
+    Part of a cardboard canoe hull simulator for a college engineering class's lake race. Questions go to Levi.
   </div>
 
 </div>
@@ -387,10 +336,9 @@ document.querySelectorAll('.copy[data-target]').forEach(btn => {
     const el = document.getElementById(btn.dataset.target);
     const text = el.textContent.replace(/Copy\s*$/, '').trim();
     navigator.clipboard.writeText(text).then(() => {
-      const orig = btn.textContent;
       btn.textContent = 'Copied';
       btn.classList.add('done');
-      setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); }, 1500);
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
     }).catch(() => {});
   });
 });
@@ -399,35 +347,37 @@ function detectOS() {
   const ua = navigator.userAgent || '';
   if (/Windows/i.test(ua)) return 'windows';
   if (/Macintosh|Mac OS X/i.test(ua)) return 'mac';
-  if (/Linux/i.test(ua)) return 'linux';
+  if (/Linux|CrOS/i.test(ua)) return 'linux';
   return 'windows';
 }
 
-function selectOS(os, { auto } = {}) {
+function remember(os) {
+  try { if (os) localStorage.setItem('guestOS', os); return localStorage.getItem('guestOS'); }
+  catch (e) { return null; }
+}
+
+function selectOS(os, detected) {
   document.querySelectorAll('.os-tab-btn').forEach(btn => {
     const active = btn.dataset.os === os;
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  document.querySelectorAll('.os-panel').forEach(panel => {
-    panel.hidden = panel.dataset.os !== os;
+  document.querySelectorAll('[data-os-only]').forEach(el => {
+    el.hidden = !el.dataset.osOnly.split(' ').includes(os);
   });
-  localStorage.setItem('guestOS', os);
-  const note = document.getElementById('os-detect-note');
-  const label = { windows: 'Windows', mac: 'Mac', linux: 'Linux' }[os];
-  note.textContent = auto ? `Detected ${label} -- pick a different tab above if that's wrong.` : '';
+  document.getElementById('use-num').textContent = os === 'windows' ? '03' : '02';
+  const label = { windows: 'Windows', mac: 'a Mac', linux: 'Linux' }[os];
+  document.getElementById('os-detect-note').textContent =
+    detected ? `Looks like you're on ${label} — pick a different tab if that's wrong.` : '';
 }
 
 document.querySelectorAll('.os-tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => selectOS(btn.dataset.os));
+  btn.addEventListener('click', () => { remember(btn.dataset.os); selectOS(btn.dataset.os, false); });
 });
 
-const savedOS = localStorage.getItem('guestOS');
-if (savedOS) {
-  selectOS(savedOS);
-} else {
-  selectOS(detectOS(), { auto: true });
-}
+const saved = remember();
+if (saved) selectOS(saved, false);
+else selectOS(detectOS(), true);
 </script>
 
 </body>

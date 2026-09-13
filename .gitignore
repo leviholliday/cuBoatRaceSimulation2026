@@ -9,3 +9,4 @@ run.log
 nohup.out
 panel.log
 .guest_state.json
+.guest_panel.pid
