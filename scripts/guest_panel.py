@@ -316,22 +316,27 @@ def current_status() -> dict:
         "phase": phase,
         "detail": summary.get("detail", ""),
         "progress": summary.get("progress"),
+        "share": bool(state.get("share")),
+        "sharing": _governor.mode if (_governor and running) else None,
         "log_tail": lines[-40:],
     }
 
 
-def start_run(name: str, hours: float, seed: int | None = None) -> dict:
+def start_run(name: str, hours: float, seed: int | None = None, share: bool = False) -> dict:
     with _lock:
         state = load_state()
         if is_running(state.get("pid")):
             return {"ok": False, "error": "A run is already going -- stop it first."}
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
+        # Always lowest priority: anything the owner opens gets the CPU first,
+        # and the search only uses what's left over.
+        nice = ["nice", "-n", "19"] if shutil.which("nice") else []
         with open(LOG_PATH, "w") as log_fh:
             proc = subprocess.Popen(
-                [PYTHON, "scripts/run_montecarlo.py", "--overnight",
-                 "--hours", str(hours), "--seed", str(seed),
-                 "--material", "paperboard_unknown"],
+                nice + [PYTHON, "scripts/run_montecarlo.py", "--overnight",
+                        "--hours", str(hours), "--seed", str(seed),
+                        "--material", "paperboard_unknown"],
                 cwd=ROOT, stdout=log_fh, stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL, start_new_session=True,
             )
@@ -342,9 +347,17 @@ def start_run(name: str, hours: float, seed: int | None = None) -> dict:
             subprocess.Popen(["caffeinate", "-i", "-w", str(proc.pid)],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
-        save_state({"name": name, "hours": hours, "seed": seed,
+        save_state({"name": name, "hours": hours, "seed": seed, "share": share,
                     "pid": proc.pid, "started_at": time.time()})
         return {"ok": True, "seed": seed, "pid": proc.pid}
+
+
+def set_share(enabled: bool) -> dict:
+    with _lock:
+        state = load_state()
+        state["share"] = enabled
+        save_state(state)
+    return {"ok": True}
 
 
 def stop_run() -> dict:
@@ -353,6 +366,10 @@ def stop_run() -> dict:
     pid = state.get("pid")
     if not is_running(pid):
         return {"ok": False, "error": "Nothing is running."}
+    try:
+        os.killpg(pid, signal.SIGCONT)  # a paused search can't act on the stop until resumed
+    except OSError:
+        pass
     os.kill(pid, signal.SIGINT)
     return {"ok": True}
 
@@ -382,6 +399,184 @@ def run_upload(name: str) -> dict:
         return {"ok": False, "output": "Upload timed out -- check your internet connection."}
     output = (result.stdout or "") + (result.stderr or "")
     return {"ok": result.returncode == 0, "output": output.strip()}
+
+
+# --------------------------------------------------------- sharing the computer
+
+IDLE_AFTER_S = 120   # no keyboard or mouse for this long = they've stepped away
+SHARE_DUTY = 0.35    # while they're on it, the search runs this fraction of each second
+
+# GetLastInputInfo through a long-lived PowerShell: starting PowerShell fresh
+# for every reading would itself cost about a second of CPU each time.
+_WINDOWS_IDLE_PS = r"""
+Add-Type @'
+using System; using System.Runtime.InteropServices;
+public static class GuestIdle {
+  [StructLayout(LayoutKind.Sequential)] struct LII { public uint cbSize; public uint dwTime; }
+  [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LII info);
+  public static uint Ms() { var l = new LII(); l.cbSize = (uint)Marshal.SizeOf(l); GetLastInputInfo(ref l); return unchecked((uint)Environment.TickCount - l.dwTime); }
+}
+'@
+while ($true) { [Console]::Out.WriteLine([GuestIdle]::Ms()); [Console]::Out.Flush(); Start-Sleep -Seconds 3 }
+"""
+
+
+class _WindowsIdle:
+    """Keyboard/mouse idle time on the Windows side, read from inside WSL."""
+
+    def __init__(self):
+        self.proc = None
+        self.seconds = None
+        self.updated = 0.0
+
+    def _pump(self):
+        for line in self.proc.stdout:
+            try:
+                self.seconds = int(line.strip()) / 1000
+                self.updated = time.time()
+            except ValueError:
+                pass
+
+    def read(self) -> float | None:
+        if self.proc is None:
+            try:
+                self.proc = subprocess.Popen(
+                    ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", _WINDOWS_IDLE_PS],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL, text=True)
+                threading.Thread(target=self._pump, daemon=True).start()
+            except OSError:
+                self.proc = False
+        if not self.proc or time.time() - self.updated > 15:
+            return None
+        return self.seconds
+
+    def close(self):
+        if self.proc:
+            self.proc.terminate()
+
+
+def input_idle_seconds(windows_idle: _WindowsIdle) -> float | None:
+    """Seconds since the last keyboard or mouse input, or None where that
+    can't be read (no screen, or a Linux desktop without xprintidle)."""
+    try:
+        if is_wsl():
+            return windows_idle.read()
+        if host_kind() == "mac":
+            out = subprocess.run(["ioreg", "-c", "IOHIDSystem"],
+                                 capture_output=True, text=True, timeout=5).stdout
+            match = re.search(r'"HIDIdleTime" = (\d+)', out)
+            return int(match.group(1)) / 1e9 if match else None
+        if os.environ.get("DISPLAY") and shutil.which("xprintidle"):
+            out = subprocess.run(["xprintidle"], capture_output=True, text=True, timeout=5).stdout
+            return int(out.strip()) / 1000
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return None
+
+
+class _OtherCpu:
+    """CPU cores in use by everything *except* the search, from /proc -- the
+    fallback on Linux when keyboard/mouse idle time isn't readable (a Pi with
+    no screen: "someone's using it" then means someone SSH'd in and working)."""
+
+    def __init__(self):
+        self.prev = None
+        self.tick = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+
+    def sample(self, pgid: int) -> float | None:
+        try:
+            with open("/proc/stat") as f:
+                vals = [int(v) for v in f.readline().split()[1:9]]
+        except (OSError, ValueError):
+            return None
+        busy = sum(vals) - vals[3] - vals[4]
+        ours = {}
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                with open(f"/proc/{entry}/stat") as f:
+                    fields = f.read().rsplit(")", 1)[1].split()
+            except (OSError, IndexError):
+                continue
+            if int(fields[2]) == pgid:
+                ours[int(entry)] = int(fields[11]) + int(fields[12])
+        now = time.time()
+        prev, self.prev = self.prev, (now, busy, ours)
+        if prev is None:
+            return None
+        t0, busy0, ours0 = prev
+        ours_delta = sum(t - ours0[pid] for pid, t in ours.items() if pid in ours0)
+        return max(0.0, (busy - busy0 - ours_delta) / self.tick / max(now - t0, 0.1))
+
+
+class Governor(threading.Thread):
+    """Only when the guest ticked "I'll be using this computer": while they're
+    on it, pause and resume the whole search (its own process group, so every
+    worker at once) each second, leaving it SHARE_DUTY of the time; once
+    they've stepped away, let it run flat out. Every run is already low
+    priority, which gives whatever they open first claim on the CPU -- this
+    adds real headroom on top, and keeps the machine cooler and quieter."""
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.halt = threading.Event()
+        self.mode = None  # None, "full", or "sharing"
+        self._windows_idle = _WindowsIdle()
+        self._other_cpu = _OtherCpu()
+
+    @staticmethod
+    def _signal(pid, sig):
+        try:
+            os.killpg(pid, sig)
+        except OSError:
+            pass
+
+    def _user_active(self, pid: int) -> bool:
+        idle = input_idle_seconds(self._windows_idle)
+        if idle is not None:
+            return idle < IDLE_AFTER_S
+        if is_wsl():
+            return True  # can't see Windows activity -- they ticked the box, so assume yes
+        cores = self._other_cpu.sample(pid)
+        return True if cores is None else cores > 0.75
+
+    def run(self):
+        paused = None
+        active, checked = True, 0.0
+        while not self.halt.is_set():
+            state = load_state()
+            pid = state.get("pid")
+            if not state.get("share") or not is_running(pid):
+                if paused:
+                    self._signal(paused, signal.SIGCONT)
+                    paused = None
+                self.mode = None
+                self.halt.wait(2)
+                continue
+            if time.time() - checked >= 5:
+                active = self._user_active(pid)
+                checked = time.time()
+            if not active:
+                if paused:
+                    self._signal(paused, signal.SIGCONT)
+                    paused = None
+                self.mode = "full"
+                self.halt.wait(1)
+                continue
+            self.mode = "sharing"
+            self._signal(pid, signal.SIGCONT)
+            self.halt.wait(SHARE_DUTY)
+            self._signal(pid, signal.SIGSTOP)
+            paused = pid
+            self.halt.wait(1 - SHARE_DUTY)
+        if paused:
+            self._signal(paused, signal.SIGCONT)
+        self._windows_idle.close()
+
+
+_governor: Governor | None = None
 
 
 # ------------------------------------------------------------------- the page
@@ -486,6 +681,12 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
 .safe-banner b{color:var(--good)}
 .offline-banner{background:var(--warn-soft); color:var(--ink); display:block}
 .offline-banner b{color:var(--warn)}
+.check{display:flex; align-items:flex-start; gap:10px; text-transform:none; letter-spacing:0; font-family:var(--font-body); font-weight:600; font-size:14.5px; color:var(--ink); margin:2px 0 4px; cursor:pointer}
+.check input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--accent); flex-shrink:0; cursor:pointer}
+.check-hint{font-size:13px; color:var(--ink-soft); margin:0 0 14px 28px}
+.share-note{font-size:13px; color:var(--ink-soft); margin:-6px 0 14px}
+.after-upload{font-size:14px; margin:12px 0 0}
+.after-upload a,.footer a{color:var(--accent-ink)}
 [hidden]{display:none !important}
 </style></head><body>
 <div class="wrap">
@@ -520,6 +721,8 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
         <input type="number" id="seed" placeholder="auto" min="0" step="1">
       </div>
     </div>
+    <label class="check"><input type="checkbox" id="share"> I'll be using this computer while it runs</label>
+    <p class="check-hint">It backs off whenever you're on the computer and speeds back up when you step away -- so it checks fewer hull designs than if you leave it alone. You can change this any time.</p>
     <p class="hint">8 hours is a good overnight default -- it fits the search into whatever window you give it and never runs long. Keep the computer plugged in and don't let it go to sleep; sleep pauses the search. Leave Seed blank unless Levi gave you a number.</p>
     <div class="actions">
       <button class="btn-secondary" id="btn-test">Test setup (10 sec)</button>
@@ -540,23 +743,25 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
     </div>
     <div class="bar" id="bar-wrap" hidden><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
     <p class="detail" id="status-detail"></p>
+    <p class="share-note" id="share-note" hidden></p>
     <div class="actions">
       <button class="btn-danger" id="btn-stop">Stop</button>
       <button class="btn-primary" id="btn-upload" hidden>Send results to Levi</button>
     </div>
     <div id="upload-result" class="result-box" hidden></div>
+    <p class="after-upload" id="after-upload" hidden>Done lending your computer? <a href="https://cuboat.netlify.app/guest#remove" target="_blank" rel="noopener">Here's how to remove it</a> -- it's one command.</p>
     <details>
       <summary>Show raw log</summary>
       <div class="result-box" id="log-box" style="max-height:260px"></div>
     </details>
   </div>
 
-  <p class="footer">Part of a cardboard canoe hull simulator for a college engineering class's lake race.</p>
+  <p class="footer">Part of a cardboard canoe hull simulator for a college engineering class's lake race. &middot; <a href="https://cuboat.netlify.app/guest#remove" target="_blank" rel="noopener">How to remove it</a></p>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const nameEl = $('name'), hoursEl = $('hours'), seedEl = $('seed');
+const nameEl = $('name'), hoursEl = $('hours'), seedEl = $('seed'), shareEl = $('share');
 const OFFLINE = "Can't reach the panel right now -- it may have stopped.";
 
 function store(kind, key, value) {
@@ -566,6 +771,13 @@ function store(kind, key, value) {
 
 nameEl.value = store('localStorage', 'guestName') || '';
 nameEl.addEventListener('input', () => store('localStorage', 'guestName', nameEl.value));
+shareEl.addEventListener('change', async () => {
+  await api('/api/share', {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({ enabled: shareEl.checked }),
+  });
+  poll();
+});
 
 async function api(path, opts) {
   try {
@@ -624,7 +836,7 @@ $('btn-start').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = 'Starting...';
   const r = await api('/api/start', {
     method: 'POST', headers: {'content-type': 'application/json'},
-    body: JSON.stringify({ name, hours, seed }),
+    body: JSON.stringify({ name, hours, seed, share: shareEl.checked }),
   });
   btn.textContent = 'Start run';
   if (!r.ok) { btn.disabled = false; alert(r.error); return; }
@@ -649,6 +861,7 @@ $('btn-upload').addEventListener('click', async () => {
   });
   box.className = 'result-box ' + (r.ok ? 'ok' : 'bad');
   box.textContent = (r.ok ? 'Sent! Thank you for the help.\n\n' : 'Upload failed:\n\n') + r.output;
+  $('after-upload').hidden = !r.ok;
   btn.disabled = false; btn.textContent = 'Send results to Levi';
 });
 
@@ -670,6 +883,7 @@ async function poll() {
   if (!filledFromState) {
     if (s.name && !nameEl.value) nameEl.value = s.name;
     if (s.hours) hoursEl.value = s.hours;
+    shareEl.checked = !!s.share;
     filledFromState = true;
   }
 
@@ -683,6 +897,10 @@ async function poll() {
   $('seed-tag').hidden = s.seed == null;
   if (s.seed != null) $('seed-tag').textContent = 'seed ' + s.seed;
   $('status-detail').textContent = s.detail || '';
+  $('share-note').hidden = !s.sharing;
+  $('share-note').textContent = s.sharing === 'sharing'
+    ? "You're using the computer, so it's running lighter for now."
+    : "You've stepped away, so it's running at full speed.";
   $('bar-wrap').hidden = s.progress == null;
   if (s.progress != null) $('bar-fill').style.width = s.progress + '%';
   $('btn-stop').hidden = !s.running;
@@ -745,7 +963,9 @@ class Handler(BaseHTTPRequestHandler):
                     seed = max(0, min(2**31 - 1, int(data["seed"])))
                 except (TypeError, ValueError):
                     seed = None
-            self._send_json(start_run(name, hours, seed))
+            self._send_json(start_run(name, hours, seed, bool(data.get("share"))))
+        elif self.path == "/api/share":
+            self._send_json(set_share(bool(self._read_json().get("enabled"))))
         elif self.path == "/api/stop":
             self._send_json(stop_run())
         elif self.path == "/api/test":
@@ -950,6 +1170,18 @@ def serve(quiet: bool) -> int:
         print(f"  Couldn't start the panel on port {PORT}: {e}", flush=True)
         return 1
     PANEL_PID_PATH.write_text(str(os.getpid()))
+
+    # If an earlier panel died mid-pause (killed outright), its search would
+    # otherwise stay frozen forever.
+    pid = load_state().get("pid")
+    if is_running(pid):
+        Governor._signal(pid, signal.SIGCONT)
+    global _governor
+    _governor = Governor()
+    _governor.start()
+    signal.signal(signal.SIGTERM,
+                  lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
+
     if quiet:
         print(f"panel {VERSION} listening on {host}:{PORT}", flush=True)
     else:
@@ -960,6 +1192,8 @@ def serve(quiet: bool) -> int:
     except KeyboardInterrupt:
         print("\n  Panel stopped. A search that was running keeps going.", flush=True)
     finally:
+        _governor.halt.set()
+        _governor.join(3)
         server.server_close()
         try:
             PANEL_PID_PATH.unlink()
@@ -987,21 +1221,24 @@ def cmd_uninstall() -> int:
         print("  Nothing removed.\n")
         return 1
 
+    # The panel first: while it runs, its governor may be pausing the search,
+    # and a paused process can't act on a stop signal.
+    status = panel_status()
+    if status and not status.get("_foreign"):
+        print("  Stopping the panel...")
+        replace_outdated_panel()
+
     pid = load_state().get("pid")
     if is_running(pid):
         print("  Stopping the search...")
         for sig, wait in ((signal.SIGTERM, 10), (signal.SIGKILL, 3)):
             try:
+                os.killpg(pid, signal.SIGCONT)
                 os.killpg(pid, sig)  # its own process group, workers included
             except OSError:
                 pass
             if _wait_for(lambda: not is_running(pid), wait):
                 break
-
-    status = panel_status()
-    if status and not status.get("_foreign"):
-        print("  Stopping the panel...")
-        replace_outdated_panel()
 
     desktop = desktop_path()
     if desktop:
