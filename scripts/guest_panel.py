@@ -356,6 +356,13 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
 }
 .shortcut-bar button{white-space:nowrap}
 .shortcut-bar .dismiss{background:none; color:var(--accent-ink); text-decoration:underline; padding:6px 4px}
+.safe-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  background:var(--good-soft); border-radius:10px; padding:12px 16px; margin-bottom:16px;
+  font-size:13.5px; color:var(--ink);
+}
+.safe-banner b{color:var(--good)}
+.safe-banner .dismiss{background:none; color:var(--ink-soft); text-decoration:underline; padding:6px 4px; white-space:nowrap}
 [hidden]{display:none !important}
 </style></head><body>
 <div class="wrap">
@@ -395,6 +402,10 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
   </div>
 
   <div class="card" id="status-card" hidden>
+    <div class="safe-banner" id="safe-banner" hidden>
+      <span>✓ <b>It's running.</b> Safe to close this browser tab, or your whole browser -- the search keeps going on its own. Come back to <code>localhost:8420</code> any time to check on it.</span>
+      <button class="dismiss" id="btn-safe-dismiss">Got it</button>
+    </div>
     <div class="status">
       <span class="dot" id="status-dot"></span>
       <span class="phase-label" id="status-label">--</span>
@@ -429,6 +440,11 @@ async function api(path, opts) {
 }
 
 if (localStorage.getItem('shortcutDismissed')) $('shortcut-bar').hidden = true;
+
+$('btn-safe-dismiss').addEventListener('click', () => {
+  sessionStorage.setItem('safeBannerDismissed', '1');
+  $('safe-banner').hidden = true;
+});
 
 $('btn-shortcut-dismiss').addEventListener('click', () => {
   localStorage.setItem('shortcutDismissed', '1');
@@ -513,6 +529,7 @@ async function poll() {
   if (s.hours) hoursEl.value = s.hours;
   const card = $('status-card');
   card.hidden = s.phase === 'idle' && !s.started_at;
+  $('safe-banner').hidden = !s.started_at || !!sessionStorage.getItem('safeBannerDismissed');
   $('status-dot').className = 'dot ' + s.phase;
   $('status-label').textContent = PHASE_LABEL[s.phase] || s.phase;
   const seedTag = $('seed-tag');
