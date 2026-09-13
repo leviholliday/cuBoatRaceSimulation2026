@@ -130,13 +130,6 @@ kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); bor
 .callout.good{background:color-mix(in srgb, var(--good) 14%, var(--panel))}
 .callout.good b{color:var(--good)}
 
-.download-btn{
-  display:inline-flex; align-items:center; gap:8px; font-family:var(--font-display);
-  font-weight:700; font-size:15px; color:#fff9f2; background:var(--accent);
-  padding:12px 20px; border-radius:9px; text-decoration:none; transition:opacity 0.15s;
-}
-.download-btn:hover{opacity:0.9}
-
 .panel-shot{
   background:var(--mono-bg); border-radius:10px; padding:18px 20px; margin:16px 0;
 }
@@ -198,23 +191,20 @@ kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); bor
         <span class="phase-num">01</span>
         <h2>Turn on Linux-inside-Windows</h2>
       </div>
-      <p class="phase-when">One time only. No typing — just a download.</p>
-      <p>The simulator is built for Linux and Mac terminals, so this turns on <b>WSL</b> — a real, contained Linux that lives inside Windows without touching anything else on your PC.</p>
-
-      <p style="margin:18px 0 10px">
-        <a href="/guest-setup.bat" class="download-btn">⬇ Download guest-setup.bat</a>
-      </p>
-      <p class="note" style="margin:0 0 18px">Double-click the downloaded file, click <b>Yes</b> on the Windows permission popup, and let it run.</p>
+      <p class="phase-when">One time only.</p>
+      <p>The simulator is built for Linux and Mac terminals, so this turns on <b>WSL</b> — Microsoft's own, contained Linux that lives inside Windows without touching anything else on your PC.</p>
 
       <ol class="steps">
-        <li>When it says "Done," restart your computer.</li>
-        <li>After it restarts, open the new <b>Ubuntu</b> app from the Start menu. The first time, it asks you to make up a username and password — anything works; it's only for this Linux, not your Windows login.</li>
+        <li>Right-click the <b>Start</b> button and choose <b>Terminal (Admin)</b> — on older Windows it's called <b>Windows PowerShell (Admin)</b>. Click <b>Yes</b> on the permission popup.</li>
+        <li>Paste this and press <kbd>Enter</kbd>:</li>
       </ol>
 
-      <div class="why">
-        <b>What that file does</b>
-        It's plain text — open it in Notepad first if you like. It just runs Windows's own <code>wsl --install</code> for you, so you never have to open an admin terminal by hand.
-      </div>
+      <div class="cmd" id="cmd-wsl">wsl --install -d Ubuntu<button class="copy" data-target="cmd-wsl">Copy</button></div>
+
+      <ol class="steps" start="3">
+        <li>When it finishes, restart your computer.</li>
+        <li>After it restarts, open the new <b>Ubuntu</b> app from the Start menu. The first time, it asks you to make up a username and password — anything works; it's only for this Linux, not your Windows login.</li>
+      </ol>
     </div>
 
     <div class="phase">
