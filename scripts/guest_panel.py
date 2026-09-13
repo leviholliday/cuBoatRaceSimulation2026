@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -36,7 +38,7 @@ UPLOAD_URL = "https://cuboat.netlify.app/api/upload"
 UPLOAD_TOKEN = "PW5hxDurVGmVN1AjT5rDxrKf4nvdndUG"
 PYTHON = str(ROOT / ".venv" / "bin" / "python")
 PORT = 8420
-SHORTCUT_NAME = "Canoe Hull Search.url"
+SHORTCUT_BASENAME = "Canoe Hull Search"
 
 _lock = threading.Lock()
 
@@ -50,11 +52,45 @@ def is_wsl() -> bool:
         return False
 
 
+def host_kind() -> str:
+    """'windows' (incl. WSL), 'mac', or 'linux' -- used to pick the right
+    shortcut file format and browser-launch method, since none of those
+    are portable across operating systems."""
+    if is_wsl() or platform.system() == "Windows":
+        return "windows"
+    if platform.system() == "Darwin":
+        return "mac"
+    return "linux"
+
+
+def has_display() -> bool:
+    """A Pi (or any Linux box) run over plain SSH has no GUI session, so
+    there's nothing for a browser to open into -- attempting it just fails
+    silently. A desktop session sets one of these."""
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def lan_ip() -> str | None:
+    """Best-effort LAN address, for machines with no display of their own
+    (a headless Pi) where the panel has to be reached from another device
+    on the network instead of via localhost."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return None
+
+
 def open_browser(url: str) -> None:
-    """webbrowser.open() can't reach a real browser from inside WSL -- there
-    is no browser installed in the Linux side, so it has to be handed off
-    to Windows explicitly instead."""
-    if is_wsl():
+    """webbrowser.open() can't reach a real browser from inside WSL, and is
+    unreliable on minimal Linux desktops (including Raspberry Pi OS) -- both
+    get an explicit, more direct method instead."""
+    kind = host_kind()
+    if kind == "windows" and is_wsl():
         for cmd in (["cmd.exe", "/c", "start", "", url],
                     ["powershell.exe", "-NoProfile", "-Command", f"Start-Process '{url}'"]):
             try:
@@ -63,15 +99,24 @@ def open_browser(url: str) -> None:
             except OSError:
                 continue
         return
+    if kind == "linux":
+        if not has_display():
+            return  # headless -- nothing to open a browser into
+        try:
+            subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except OSError:
+            pass
     try:
         webbrowser.open(url)
     except Exception:
         pass
 
 
-def windows_desktop_path() -> Path | None:
-    """The friend's real Windows desktop, reached from inside WSL. Returns
-    None if it can't be found (e.g. running outside WSL/Windows)."""
+def desktop_path() -> Path | None:
+    """The real desktop folder -- on WSL that's the Windows desktop, reached
+    through PowerShell since WSL's own filesystem has no such folder.
+    Returns None if it can't be found."""
     if not is_wsl():
         candidate = Path.home() / "Desktop"
         return candidate if candidate.is_dir() else None
@@ -94,14 +139,44 @@ def windows_desktop_path() -> Path | None:
 
 
 def create_desktop_shortcut(url: str) -> dict:
-    desktop = windows_desktop_path()
+    desktop = desktop_path()
     if not desktop:
         return {"ok": False, "error": "Couldn't find your desktop folder automatically."}
+    kind = host_kind()
+    note = None
     try:
-        (desktop / SHORTCUT_NAME).write_text(f"[InternetShortcut]\nURL={url}\n")
+        if kind == "windows":
+            path = desktop / f"{SHORTCUT_BASENAME}.url"
+            path.write_text(f"[InternetShortcut]\nURL={url}\n")
+        elif kind == "mac":
+            path = desktop / f"{SHORTCUT_BASENAME}.webloc"
+            path.write_text(
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+                '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+                '<plist version="1.0"><dict><key>URL</key>'
+                f'<string>{url}</string></dict></plist>\n'
+            )
+        else:  # linux, incl. Raspberry Pi OS -- a plain URL file isn't a
+            # recognized shortcut type here, it just opens as text; a
+            # .desktop launcher is the actual equivalent
+            path = desktop / f"{SHORTCUT_BASENAME}.desktop"
+            path.write_text(
+                "[Desktop Entry]\nVersion=1.0\nType=Application\n"
+                f"Name={SHORTCUT_BASENAME}\n"
+                "Comment=Open the hull search control panel\n"
+                f"Exec=xdg-open {url}\nIcon=applications-internet\nTerminal=false\n"
+            )
+            path.chmod(0o755)
+            note = ("Linux may ask you to right-click it and choose \"Allow Launching\" "
+                    "the first time -- that's a normal one-time security prompt, "
+                    "not an error.")
     except OSError as e:
         return {"ok": False, "error": str(e)}
-    return {"ok": True, "path": str(desktop / SHORTCUT_NAME)}
+    result = {"ok": True, "path": str(path)}
+    if note:
+        result["note"] = note
+    return result
 
 
 def load_state() -> dict:
@@ -459,7 +534,9 @@ $('btn-shortcut').addEventListener('click', async () => {
   box.hidden = false; box.className = 'result-box';
   if (r.ok) {
     box.classList.add('ok');
-    box.textContent = 'Done! Look for "Canoe Hull Search" on your desktop -- double-click it any time to get back to this page.';
+    let msg = 'Done! Look for "Canoe Hull Search" on your desktop -- double-click it any time to get back to this page.';
+    if (r.note) msg += '\n\n' + r.note;
+    box.textContent = msg;
     localStorage.setItem('shortcutDismissed', '1');
     $('shortcut-bar').hidden = true;
   } else {
@@ -617,9 +694,20 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    # Binds to every interface, not just loopback, so a headless machine
+    # (a Pi run over plain SSH, with no display to open a browser into) can
+    # still be reached from another device's browser on the same network.
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     url = f"http://localhost:{PORT}"
-    print(f"Panel running -- open {url} in your browser.")
+    # flush=True: stdout is often redirected to a file (panel.log via nohup),
+    # which Python buffers in blocks rather than lines -- without this, these
+    # two lines (the ones that matter most on a headless machine with no
+    # other way to learn the LAN address) would never actually reach the file.
+    print(f"Panel running -- open {url} in your browser.", flush=True)
+    ip = lan_ip()
+    if ip:
+        print(f"No display here? From another device on the same network/Wi-Fi, "
+              f"try http://{ip}:{PORT} instead.", flush=True)
     open_browser(url)
     try:
         server.serve_forever()
