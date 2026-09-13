@@ -330,8 +330,11 @@ def run_upload(name: str) -> dict:
     env = dict(os.environ, UPLOAD_TOKEN=UPLOAD_TOKEN)
     cmd = [PYTHON, "scripts/upload_results.py", "--tag", name, "--url", UPLOAD_URL]
     try:
+        # A real overnight run's output can run to hundreds of MB, uploaded
+        # in chunks -- generous on purpose so a slow connection reads as
+        # slow, not broken.
         result = subprocess.run(
-            cmd, cwd=ROOT, capture_output=True, text=True, timeout=120, env=env)
+            cmd, cwd=ROOT, capture_output=True, text=True, timeout=1800, env=env)
     except subprocess.TimeoutExpired:
         return {"ok": False, "output": "Upload timed out -- check your internet connection."}
     ok = result.returncode == 0
