@@ -43,6 +43,7 @@ PANEL_PID_PATH = ROOT / ".guest_panel.pid"
 LOG_PATH = ROOT / "run.log"
 PANEL_LOG_PATH = ROOT / "panel.log"
 UPLOAD_URL = "https://cuboat.netlify.app/api/upload"
+SEED_URL = "https://cuboat.netlify.app/api/seed"
 UPLOAD_TOKEN = "PW5hxDurVGmVN1AjT5rDxrKf4nvdndUG"
 PYTHON = str(ROOT / ".venv" / "bin" / "python")
 # GUEST_PANEL_PORT overrides this for a machine where 8420 is already taken.
@@ -343,13 +344,31 @@ def current_status() -> dict:
     }
 
 
+def claim_seed(name: str) -> int | None:
+    """The next unused seed from the results site, so no two computers repeat
+    each other's work. None if the site can't be reached."""
+    req = urllib.request.Request(
+        SEED_URL, data=json.dumps({"name": name}).encode(), method="POST",
+        headers={"x-upload-token": UPLOAD_TOKEN, "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return int(json.loads(resp.read())["seed"])
+    except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def start_run(name: str, hours: float, seed: int | None = None, share: bool = False) -> dict:
     with _lock:
         state = load_state()
         if is_running(state.get("pid")):
             return {"ok": False, "error": "A run is already going -- stop it first."}
         if seed is None:
-            seed = int.from_bytes(os.urandom(2), "big")
+            # Keep this computer's seed if it already has one (starting again
+            # after a restart continues the same search); otherwise take the
+            # next from the site; offline, a random one far above the
+            # hand-assigned numbers.
+            seed = (state.get("seed") or claim_seed(name)
+                    or 10_000 + int.from_bytes(os.urandom(2), "big"))
         # Always lowest priority: anything the owner opens gets the CPU first,
         # and the search only uses what's left over.
         nice = ["nice", "-n", "19"] if shutil.which("nice") else []
@@ -746,7 +765,7 @@ summary{cursor:pointer; font-size:13px; color:var(--ink-soft)}
     </div>
     <label class="check"><input type="checkbox" id="share"> I'll be using this computer while it runs</label>
     <p class="check-hint">It backs off whenever you're on the computer and speeds back up when you step away -- so it checks fewer hull designs than if you leave it alone. You can change this any time.</p>
-    <p class="hint">8 hours is a good overnight default -- it fits the search into whatever window you give it and never runs long. Keep the computer plugged in and don't let it go to sleep; sleep pauses the search. Leave Seed blank unless Levi gave you a number.</p>
+    <p class="hint">8 hours is a good overnight default -- it fits the search into whatever window you give it and never runs long. Keep the computer plugged in and don't let it go to sleep; sleep pauses the search. Leave Seed blank -- each computer automatically gets its own number, so none repeat each other's work.</p>
     <div class="actions">
       <button class="btn-secondary" id="btn-test">Test setup (10 sec)</button>
       <button class="btn-primary" id="btn-start">Start run</button>

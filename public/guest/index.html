@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Guest Shift</title>
-<meta name="description" content="Lend your computer to the canoe hull search overnight -- one setup command, then a simple web page for everything else.">
+<title>Help Build the Boat</title>
+<meta name="description" content="Lend your computer overnight to help design a cardboard canoe -- one setup command, then a simple web page for everything else.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 :root{
@@ -36,6 +36,22 @@
 }
 
 *{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+.os-tabs{scroll-margin-top:24px}
+.ready{
+  margin-top:64px; padding:22px 24px; background:var(--panel); border:1px solid var(--line-soft);
+  border-radius:12px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.ready p{margin:0; max-width:44ch}
+.jump-btn{
+  font-family:var(--font-display); font-weight:700; font-size:15px; color:#fff9f2; background:var(--accent);
+  padding:11px 18px; border-radius:9px; text-decoration:none; white-space:nowrap; transition:opacity 0.15s;
+}
+.jump-btn:hover{opacity:0.9}
+.jump-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.read-first{margin:22px 0 0}
+.read-first a{color:var(--accent-ink); font-weight:600}
 body{
   background:var(--ground); color:var(--ink); font-family:var(--font-body);
   font-size:16px; line-height:1.6; margin:0;
@@ -163,8 +179,10 @@ kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); bor
 <body>
 <div class="wrap">
 
-  <h1>Guest Shift</h1>
+  <h1>Help Build the Boat</h1>
   <p class="dek">Levi could use your computer for a few hours overnight. One setup command, then a simple web page for everything else — no coding, and one command removes it all when you're done.</p>
+
+  <div class="callout read-first"><b>Please read this whole page before installing anything.</b> It's short, and the end shows how to remove it again. Questions, or stuck anywhere? Text or call Levi at <a href="tel:+14193026917">419-302-6917</a>.</div>
 
   <div class="intro">
     <p>He's building a cardboard canoe for a college engineering class, and the boat's hull shape gets picked by testing thousands of random designs against real physics — hull stability, cardboard strength, paddling speed — rather than guessing. More computers running overnight means more designs get checked before the race.</p>
@@ -176,7 +194,7 @@ kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); bor
     </div>
   </div>
 
-  <div class="os-tabs" role="tablist" aria-label="Your computer">
+  <div class="os-tabs" id="start" role="tablist" aria-label="Your computer">
     <button class="os-tab-btn" data-os="windows" role="tab">Windows</button>
     <button class="os-tab-btn" data-os="mac" role="tab">Mac</button>
     <button class="os-tab-btn" data-os="linux" role="tab">Linux / Raspberry Pi</button>
@@ -314,8 +332,13 @@ kbd{font-family:var(--font-mono); font-size:0.88em; background:var(--panel); bor
     <div class="callout good"><b>Nothing else on your computer was touched.</b> No background services, no settings changed, nothing left behind.</div>
   </div>
 
+  <div class="ready">
+    <p><b>Read everything?</b> You're ready — head back up and start with step 1.</p>
+    <a href="#start" class="jump-btn">↑ Back to step 1</a>
+  </div>
+
   <div class="footer">
-    Part of a cardboard canoe hull simulator for a college engineering class's lake race. Questions go to Levi.
+    Part of a cardboard canoe hull simulator for a college engineering class's lake race. Questions? Text Levi at <a href="tel:+14193026917" style="color:var(--accent-ink)">419-302-6917</a>.
   </div>
 
 </div>
