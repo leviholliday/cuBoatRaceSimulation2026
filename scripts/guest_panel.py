@@ -54,6 +54,18 @@ SHORTCUT_EXTS = (".bat", ".url", ".command", ".webloc", ".desktop")
 VERSION = hashlib.sha1(Path(__file__).read_bytes()).hexdigest()[:12]
 
 _lock = threading.Lock()
+_children: list[subprocess.Popen] = []
+
+
+def reap_children() -> None:
+    """The panel launched these, so it has to collect them once they exit --
+    otherwise a finished run lingers as a zombie that still looks alive."""
+    for child in list(_children):
+        if child.poll() is not None:
+            try:
+                _children.remove(child)
+            except ValueError:
+                pass
 
 
 # ---------------------------------------------------------------- environment
@@ -239,13 +251,21 @@ def save_state(state: dict) -> None:
 
 
 def is_running(pid) -> bool:
+    """Alive *and* actually the search. Process IDs get reused: a run that
+    died hours ago can leave its ID to some unrelated program, which must
+    never be shown as the run -- let alone paused or stopped along with it."""
     if not pid:
         return False
     try:
         os.kill(pid, 0)
-        return True
-    except (ProcessLookupError, PermissionError, TypeError):
+    except (ProcessLookupError, PermissionError, TypeError, OverflowError):
         return False
+    try:
+        command = Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace")
+    except OSError:
+        command = subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                                 capture_output=True, text=True).stdout
+    return "run_montecarlo.py" in command
 
 
 def tail_lines(path: Path, n: int = 500) -> list[str]:
@@ -299,6 +319,7 @@ def summarize_log(lines: list[str]) -> dict:
 def current_status() -> dict:
     with _lock:
         state = load_state()
+    reap_children()
     running = is_running(state.get("pid"))
     lines = tail_lines(LOG_PATH)
     summary = summarize_log(lines) if (running or lines) else {"phase": "idle", "detail": ""}
@@ -343,10 +364,11 @@ def start_run(name: str, hours: float, seed: int | None = None, share: bool = Fa
         # A sleeping computer pauses the search. On a Mac this keeps it awake
         # for exactly as long as the run lasts (closing a laptop lid still
         # sleeps it; nothing short of settings changes that).
+        _children.append(proc)
         if host_kind() == "mac" and shutil.which("caffeinate"):
-            subprocess.Popen(["caffeinate", "-i", "-w", str(proc.pid)],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
+            _children.append(subprocess.Popen(
+                ["caffeinate", "-i", "-w", str(proc.pid)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True))
         save_state({"name": name, "hours": hours, "seed": seed, "share": share,
                     "pid": proc.pid, "started_at": time.time()})
         return {"ok": True, "seed": seed, "pid": proc.pid}
@@ -546,6 +568,7 @@ class Governor(threading.Thread):
         paused = None
         active, checked = True, 0.0
         while not self.halt.is_set():
+            reap_children()
             state = load_state()
             pid = state.get("pid")
             if not state.get("share") or not is_running(pid):
