@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / ".guest_state.json"
 LOG_PATH = ROOT / "run.log"
-UPLOAD_URL = "https://cuboatrace2026-results.netlify.app/api/upload"
+UPLOAD_URL = "https://cuboat.netlify.app/api/upload"
 UPLOAD_TOKEN = "PW5hxDurVGmVN1AjT5rDxrKf4nvdndUG"
 PYTHON = str(ROOT / ".venv" / "bin" / "python")
 PORT = 8420

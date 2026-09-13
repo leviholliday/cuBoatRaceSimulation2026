@@ -381,7 +381,7 @@ rather than duplicating each other's work:
 ```
 
 **Getting results back**: a small results site collects them —
-`cuboatrace2026-results.netlify.app`, backed by Netlify Functions and Blob
+`cuboat.netlify.app`, backed by Netlify Functions and Blob
 storage (see `netlify/functions/`). Once a machine's run finishes:
 
 ```bash

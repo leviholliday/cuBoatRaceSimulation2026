@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_URL = "https://cuboatrace2026-results.netlify.app/api/upload"
+DEFAULT_URL = "https://cuboat.netlify.app/api/upload"
 
 
 def main() -> int:
