@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hull Leaderboard</title>
+<meta name="description" content="The best cardboard canoe hull found so far, combined from every machine's overnight search.">
+<link rel="icon" type="image/svg+xml" href="../guest/favicon.svg">
+<style>
+:root{
+  --ink:#1a2332; --ink-soft:#4a5568; --ground:#f6f3ec; --panel:#ffffff;
+  --line:#ddd4bf; --line-soft:#eae3d3;
+  --accent:#b8501f; --accent-ink:#8a3c15; --accent-soft:#f1e2d3;
+  --mono-bg:#1a2332; --mono-text:#e9e4d6; --mono-dim:#8b93a3; --mono-accent:#e8a56a;
+  --good:#3f7d5c; --good-soft:#e3efe8; --warn:#a6461f; --warn-soft:#f6e3db;
+  --font-display:"Archivo",system-ui,sans-serif;
+  --font-body:"Public Sans",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#eae4d6; --ink-soft:#a8a396; --ground:#181d27; --panel:#1f2530;
+    --line:#333c4a; --line-soft:#2a3140;
+    --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
+    --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
+    --good:#6bbf94; --good-soft:#1c2b23; --warn:#e08a5c; --warn-soft:#332019;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eae4d6; --ink-soft:#a8a396; --ground:#181d27; --panel:#1f2530;
+  --line:#333c4a; --line-soft:#2a3140;
+  --accent:#e8a56a; --accent-ink:#f2c193; --accent-soft:#332216;
+  --mono-bg:#0f131b; --mono-text:#e9e4d6; --mono-dim:#6b7280; --mono-accent:#e8a56a;
+  --good:#6bbf94; --good-soft:#1c2b23; --warn:#e08a5c; --warn-soft:#332019;
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font-family:var(--font-body); font-size:16px; line-height:1.6; margin:0}
+.wrap{max-width:960px; margin:0 auto; padding:56px 24px 100px}
+h1{font-family:var(--font-display); font-weight:800; font-size:clamp(28px,5vw,40px); letter-spacing:-0.01em; margin:0 0 8px}
+.dek{color:var(--ink-soft); font-size:16px; margin:0 0 4px; max-width:66ch}
+.meta-row{display:flex; gap:16px; flex-wrap:wrap; margin-top:20px; font-size:13px; color:var(--ink-soft)}
+.meta-row a{color:var(--accent-ink); text-decoration:none; font-weight:600}
+.meta-row a:hover{text-decoration:underline}
+
+.overview{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:28px 0}
+.ov-card{background:var(--panel); border:1px solid var(--line-soft); border-radius:12px; padding:16px 18px}
+.ov-card .k{font-family:var(--font-display); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent-ink); font-weight:700; margin-bottom:4px}
+.ov-card .v{font-family:var(--font-mono); font-size:22px; font-weight:600; font-variant-numeric:tabular-nums}
+
+.callout{background:var(--accent-soft); border-radius:10px; padding:16px 18px; margin:20px 0; font-size:14.5px}
+.callout b{color:var(--accent-ink)}
+.callout.good{background:var(--good-soft)} .callout.good b{color:var(--good)}
+.callout.warn{background:var(--warn-soft)} .callout.warn b{color:var(--warn)}
+
+.winner{background:var(--panel); border:2px solid var(--accent); border-radius:16px; padding:28px 26px; margin:36px 0}
+.winner-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:4px}
+.winner-badge{font-family:var(--font-display); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#fff9f2; background:var(--accent); padding:4px 10px; border-radius:999px}
+.winner-name{font-family:var(--font-mono); font-size:15px; color:var(--ink-soft)}
+.winner h2{font-family:var(--font-display); font-weight:800; font-size:26px; margin:6px 0 18px; letter-spacing:-0.005em}
+.group{margin-top:22px}
+.group:first-of-type{margin-top:8px}
+.group h3{font-family:var(--font-display); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-soft); margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line-soft)}
+.stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px 18px}
+.stat{display:flex; flex-direction:column; gap:2px}
+.stat .k{font-size:12.5px; color:var(--ink-soft)}
+.stat .v{font-family:var(--font-mono); font-size:15.5px; font-weight:600; font-variant-numeric:tabular-nums}
+
+.confirm{margin-top:22px}
+.cmd{position:relative; background:var(--mono-bg); color:var(--mono-text); font-family:var(--font-mono); font-size:13px; line-height:1.6; border-radius:10px; padding:14px 18px; white-space:pre-wrap; word-break:break-word; margin:10px 0 0}
+
+.phase{margin-top:52px}
+.phase h2{font-family:var(--font-display); font-weight:700; font-size:20px; margin:0 0 4px; letter-spacing:-0.005em}
+.phase-note{color:var(--ink-soft); font-size:14px; margin:0 0 16px}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px; margin:0}
+th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line-soft)}
+th{font-family:var(--font-display); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft)}
+td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--font-mono)}
+tr:last-child td{border-bottom:none}
+tr.is-winner td{background:var(--accent-soft); font-weight:600}
+.tablewrap{overflow-x:auto; background:var(--panel); border:1px solid var(--line-soft); border-radius:12px; padding:4px 16px}
+.tag{display:inline-block; padding:2px 9px; border-radius:999px; background:var(--line-soft); font-family:var(--font-mono); font-size:12px; font-weight:600}
+
+.footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--line); color:var(--ink-soft); font-size:13px}
+.footer a{color:var(--accent-ink)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Hull Leaderboard</h1>
+  <p class="dek">Every overnight search, combined into one ranking -- the best hull found across all of them, with its full stats.</p>
+  <div class="meta-row">
+    <span>Generated September 16, 2026 at 4:19 AM UTC</span>
+    <a href="../">&larr; Raw uploads &amp; all machines</a>
+    <a href="combined_ranking.csv">&darr; Full ranking (CSV)</a>
+    <a href="winner_design.csv">&darr; Winner's full design (CSV)</a>
+  </div>
+
+  <div class="overview">
+    <div class="ov-card"><div class="k">Machines</div><div class="v">4</div></div>
+    <div class="ov-card"><div class="k">Designs tested</div><div class="v">2,615</div></div>
+    <div class="ov-card"><div class="k">Spread across machines</div><div class="v">1.8 pts</div></div>
+    <div class="ov-card"><div class="k">Agreement</div><div class="v" style="color:var(--good)">Agree</div></div>
+  </div>
+
+  <div class="callout good"><b>The 4 machines agree.</b> Their best picks land within 1.8 points of each other -- a good sign this ranking is not an artefact of which random designs one machine happened to sample.</div>
+
+  <div class="winner">
+    <div class="winner-head">
+      <span class="winner-badge">Overall winner</span>
+      <span class="winner-name">pi_r042950</span>
+    </div>
+    <h2>102&Prime; &times; 34&Prime; bottom &times; 37&Prime; beam &times; 13&Prime; deep &mdash; bad-day score 76.6</h2>
+    <div class="group"><h3>Hull dimensions</h3><div class="stats"><div class="stat"><span class="k">Length</span><span class="v">101.5 in</span></div>
+<div class="stat"><span class="k">Bottom width</span><span class="v">34.4 in</span></div>
+<div class="stat"><span class="k">Beam</span><span class="v">36.9 in</span></div>
+<div class="stat"><span class="k">Side height</span><span class="v">13.3 in</span></div>
+<div class="stat"><span class="k">Bow rocker</span><span class="v">1.0 in</span></div>
+<div class="stat"><span class="k">Chine fraction</span><span class="v">0.826</span></div>
+<div class="stat"><span class="k">Frames</span><span class="v">8</span></div>
+<div class="stat"><span class="k">Skin layers</span><span class="v">1</span></div>
+<div class="stat"><span class="k">Chine tape layers</span><span class="v">1</span></div>
+<div class="stat"><span class="k">Decked ends</span><span class="v">1</span></div></div></div>
+<div class="group"><h3>Race performance</h3><div class="stats"><div class="stat"><span class="k">Time, fast day (p10)</span><span class="v">71.5 s</span></div>
+<div class="stat"><span class="k">Time, typical day (p50)</span><span class="v">78.1 s</span></div>
+<div class="stat"><span class="k">Time, slow day (p90)</span><span class="v">86.4 s</span></div>
+<div class="stat"><span class="k">Builds that pass every limit</span><span class="v">87%</span></div>
+<div class="stat"><span class="k">Bad-day score (p10)</span><span class="v">76.6</span></div>
+<div class="stat"><span class="k">Average score</span><span class="v">80.1</span></div>
+<div class="stat"><span class="k">Good-day score (p90)</span><span class="v">83.4</span></div>
+<div class="stat"><span class="k">Finishes the course</span><span class="v">87%</span></div></div></div>
+<div class="group"><h3>Stability margins</h3><div class="stats"><div class="stat"><span class="k">Metacentric height, bad day (p10)</span><span class="v">18.8 in</span></div>
+<div class="stat"><span class="k">Metacentric height, typical (p50)</span><span class="v">20.6 in</span></div>
+<div class="stat"><span class="k">Freeboard, bad day (p10)</span><span class="v">9.4 in</span></div>
+<div class="stat"><span class="k">Righting-arm margin, bad day (p10)</span><span class="v">1.67</span></div>
+<div class="stat"><span class="k">Swamping reserve, bad day (p10)</span><span class="v">40.0 gal</span></div></div></div>
+<div class="group"><h3>Structural margins</h3><div class="stats"><div class="stat"><span class="k">Panel warp, bad day (p90)</span><span class="v">0.0175</span></div>
+<div class="stat"><span class="k">Hull twist, bad day (p90)</span><span class="v">4.8 deg</span></div>
+<div class="stat"><span class="k">Tape spare, bad day (p10)</span><span class="v">2%</span></div>
+<div class="stat"><span class="k">Board spare, bad day (p10)</span><span class="v">8%</span></div></div></div>
+    <div class="confirm">
+      <div class="callout"><b>Before building this one for real:</b> run a large confirmatory pass to shrink the uncertainty on this specific hull.</div>
+      <div class="cmd">python scripts/run_montecarlo.py --from-sweep out/merged/winner_design.csv --top 1 -n 20000 --material paperboard_unknown</div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <h2>Each machine's best pick</h2>
+    <p class="phase-note">Sorted by bad-day score -- the winner above is the top row here.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Machine</th><th class="num">Designs tested</th><th class="num">Bad-day score</th><th>Design</th><th class="num">L&times;B.bot&times;Beam&times;Depth</th></tr></thead>
+        <tbody><tr class="is-winner"><td><span class="tag">pi</span></td><td class="num">381</td><td class="num">76.6</td><td>r042950</td><td class="num">102&times;34&times;37&times;13</td></tr>
+<tr class=""><td><span class="tag">carter</span></td><td class="num">1,212</td><td class="num">75.8</td><td>r002651</td><td class="num">101&times;34&times;37&times;17</td></tr>
+<tr class=""><td><span class="tag">mason</span></td><td class="num">318</td><td class="num">75.2</td><td>r016422</td><td class="num">96&times;35&times;36&times;16</td></tr>
+<tr class=""><td><span class="tag">mac</span></td><td class="num">704</td><td class="num">74.8</td><td>r014251</td><td class="num">84&times;34&times;38&times;15</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="phase">
+    <h2>Top 40 designs, combined</h2>
+    <p class="phase-note">Every machine's designs in one ranking, tagged by source so nothing gets mixed up. Full list: <a href="combined_ranking.csv" style="color:var(--accent-ink)">combined_ranking.csv</a>.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Machine</th><th>Design</th><th class="num">Bad-day score</th><th class="num">Builds pass</th><th class="num">Time (p50)</th><th class="num">L&times;B.bot&times;Beam&times;Depth</th></tr></thead>
+        <tbody><tr class="is-winner"><td>1</td><td><span class="tag">pi</span></td><td>r042950</td><td class="num">76.6</td><td class="num">87%</td><td class="num">78.1s</td><td class="num">102&times;34&times;37&times;13</td></tr>
+<tr class=""><td>2</td><td><span class="tag">carter</span></td><td>r002651</td><td class="num">75.8</td><td class="num">93%</td><td class="num">81.9s</td><td class="num">101&times;34&times;37&times;17</td></tr>
+<tr class=""><td>3</td><td><span class="tag">mason</span></td><td>r016422</td><td class="num">75.2</td><td class="num">91%</td><td class="num">90.4s</td><td class="num">96&times;35&times;36&times;16</td></tr>
+<tr class=""><td>4</td><td><span class="tag">pi</span></td><td>r044947</td><td class="num">75.2</td><td class="num">75%</td><td class="num">87.0s</td><td class="num">93&times;36&times;37&times;11</td></tr>
+<tr class=""><td>5</td><td><span class="tag">pi</span></td><td>r021732</td><td class="num">75.1</td><td class="num">98%</td><td class="num">81.2s</td><td class="num">104&times;33&times;36&times;16</td></tr>
+<tr class=""><td>6</td><td><span class="tag">carter</span></td><td>r028201</td><td class="num">75.0</td><td class="num">69%</td><td class="num">89.5s</td><td class="num">87&times;34&times;37&times;14</td></tr>
+<tr class=""><td>7</td><td><span class="tag">mac</span></td><td>r014251</td><td class="num">74.8</td><td class="num">92%</td><td class="num">94.9s</td><td class="num">84&times;34&times;38&times;15</td></tr>
+<tr class=""><td>8</td><td><span class="tag">carter</span></td><td>r013511</td><td class="num">74.4</td><td class="num">100%</td><td class="num">87.3s</td><td class="num">94&times;34&times;37&times;14</td></tr>
+<tr class=""><td>9</td><td><span class="tag">mac</span></td><td>r024387</td><td class="num">74.2</td><td class="num">100%</td><td class="num">94.3s</td><td class="num">89&times;34&times;36&times;15</td></tr>
+<tr class=""><td>10</td><td><span class="tag">mac</span></td><td>r011408</td><td class="num">74.0</td><td class="num">67%</td><td class="num">73.0s</td><td class="num">108&times;36&times;41&times;15</td></tr>
+<tr class=""><td>11</td><td><span class="tag">pi</span></td><td>r056087</td><td class="num">74.0</td><td class="num">64%</td><td class="num">87.0s</td><td class="num">94&times;34&times;35&times;14</td></tr>
+<tr class=""><td>12</td><td><span class="tag">carter</span></td><td>r021069</td><td class="num">73.9</td><td class="num">68%</td><td class="num">88.5s</td><td class="num">87&times;36&times;39&times;13</td></tr>
+<tr class=""><td>13</td><td><span class="tag">mason</span></td><td>r006075</td><td class="num">73.8</td><td class="num">99%</td><td class="num">87.3s</td><td class="num">97&times;31&times;33&times;16</td></tr>
+<tr class=""><td>14</td><td><span class="tag">mac</span></td><td>r027225</td><td class="num">73.7</td><td class="num">64%</td><td class="num">84.9s</td><td class="num">97&times;33&times;34&times;16</td></tr>
+<tr class=""><td>15</td><td><span class="tag">mac</span></td><td>r012769</td><td class="num">73.7</td><td class="num">93%</td><td class="num">89.8s</td><td class="num">94&times;35&times;38&times;16</td></tr>
+<tr class=""><td>16</td><td><span class="tag">pi</span></td><td>r026819</td><td class="num">73.7</td><td class="num">74%</td><td class="num">88.3s</td><td class="num">92&times;36&times;40&times;16</td></tr>
+<tr class=""><td>17</td><td><span class="tag">mason</span></td><td>r043396</td><td class="num">73.7</td><td class="num">99%</td><td class="num">87.3s</td><td class="num">95&times;35&times;40&times;15</td></tr>
+<tr class=""><td>18</td><td><span class="tag">mac</span></td><td>r003943</td><td class="num">73.7</td><td class="num">95%</td><td class="num">85.9s</td><td class="num">93&times;32&times;34&times;13</td></tr>
+<tr class=""><td>19</td><td><span class="tag">mac</span></td><td>r003399</td><td class="num">73.6</td><td class="num">86%</td><td class="num">78.3s</td><td class="num">101&times;33&times;38&times;15</td></tr>
+<tr class=""><td>20</td><td><span class="tag">mason</span></td><td>r021624</td><td class="num">73.6</td><td class="num">95%</td><td class="num">96.8s</td><td class="num">83&times;36&times;38&times;12</td></tr>
+<tr class=""><td>21</td><td><span class="tag">mason</span></td><td>r035211</td><td class="num">73.6</td><td class="num">74%</td><td class="num">89.7s</td><td class="num">89&times;34&times;37&times;17</td></tr>
+<tr class=""><td>22</td><td><span class="tag">mac</span></td><td>r009529</td><td class="num">73.5</td><td class="num">100%</td><td class="num">86.6s</td><td class="num">96&times;35&times;36&times;15</td></tr>
+<tr class=""><td>23</td><td><span class="tag">carter</span></td><td>r048168</td><td class="num">73.5</td><td class="num">84%</td><td class="num">87.4s</td><td class="num">90&times;35&times;41&times;14</td></tr>
+<tr class=""><td>24</td><td><span class="tag">pi</span></td><td>r039515</td><td class="num">73.5</td><td class="num">88%</td><td class="num">82.0s</td><td class="num">101&times;35&times;40&times;14</td></tr>
+<tr class=""><td>25</td><td><span class="tag">carter</span></td><td>r011268</td><td class="num">73.5</td><td class="num">88%</td><td class="num">87.4s</td><td class="num">98&times;33&times;35&times;16</td></tr>
+<tr class=""><td>26</td><td><span class="tag">mac</span></td><td>r031719</td><td class="num">73.5</td><td class="num">100%</td><td class="num">80.9s</td><td class="num">98&times;33&times;36&times;12</td></tr>
+<tr class=""><td>27</td><td><span class="tag">mason</span></td><td>r022433</td><td class="num">73.5</td><td class="num">99%</td><td class="num">91.0s</td><td class="num">91&times;36&times;38&times;14</td></tr>
+<tr class=""><td>28</td><td><span class="tag">mason</span></td><td>r036257</td><td class="num">73.4</td><td class="num">80%</td><td class="num">92.7s</td><td class="num">90&times;32&times;37&times;16</td></tr>
+<tr class=""><td>29</td><td><span class="tag">mason</span></td><td>r028189</td><td class="num">73.4</td><td class="num">95%</td><td class="num">83.5s</td><td class="num">98&times;35&times;37&times;17</td></tr>
+<tr class=""><td>30</td><td><span class="tag">pi</span></td><td>r028438</td><td class="num">73.4</td><td class="num">89%</td><td class="num">81.0s</td><td class="num">100&times;35&times;38&times;11</td></tr>
+<tr class=""><td>31</td><td><span class="tag">mason</span></td><td>r015783</td><td class="num">73.3</td><td class="num">100%</td><td class="num">80.1s</td><td class="num">100&times;29&times;38&times;13</td></tr>
+<tr class=""><td>32</td><td><span class="tag">carter</span></td><td>r044334</td><td class="num">73.3</td><td class="num">100%</td><td class="num">81.2s</td><td class="num">106&times;31&times;34&times;16</td></tr>
+<tr class=""><td>33</td><td><span class="tag">pi</span></td><td>r038695</td><td class="num">73.3</td><td class="num">73%</td><td class="num">90.9s</td><td class="num">93&times;32&times;36&times;17</td></tr>
+<tr class=""><td>34</td><td><span class="tag">pi</span></td><td>r052650</td><td class="num">73.3</td><td class="num">90%</td><td class="num">88.1s</td><td class="num">97&times;33&times;36&times;16</td></tr>
+<tr class=""><td>35</td><td><span class="tag">mac</span></td><td>r010876</td><td class="num">73.3</td><td class="num">83%</td><td class="num">74.9s</td><td class="num">107&times;35&times;37&times;13</td></tr>
+<tr class=""><td>36</td><td><span class="tag">mac</span></td><td>r012594</td><td class="num">73.1</td><td class="num">98%</td><td class="num">88.7s</td><td class="num">92&times;32&times;36&times;16</td></tr>
+<tr class=""><td>37</td><td><span class="tag">mac</span></td><td>r010311</td><td class="num">73.1</td><td class="num">96%</td><td class="num">89.7s</td><td class="num">90&times;35&times;38&times;13</td></tr>
+<tr class=""><td>38</td><td><span class="tag">carter</span></td><td>r027020</td><td class="num">73.1</td><td class="num">99%</td><td class="num">87.9s</td><td class="num">89&times;34&times;40&times;17</td></tr>
+<tr class=""><td>39</td><td><span class="tag">carter</span></td><td>r038208</td><td class="num">73.0</td><td class="num">81%</td><td class="num">81.9s</td><td class="num">102&times;36&times;38&times;16</td></tr>
+<tr class=""><td>40</td><td><span class="tag">carter</span></td><td>r008667</td><td class="num">73.0</td><td class="num">97%</td><td class="num">88.4s</td><td class="num">90&times;34&times;36&times;16</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    A snapshot from the last time results were consolidated -- not live. Every machine's raw upload is always available in full at <a href="../">the uploads page</a>. Part of a cardboard canoe hull simulator for a college engineering class's lake race.
+  </div>
+
+</div>
+</body>
+</html>
